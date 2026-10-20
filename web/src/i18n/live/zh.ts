@@ -66,6 +66,7 @@ const zhL: LiveDict = {
       verification_approved: ['身份已验证', '一切就绪！现在可以预约了。'],
       verification_rejected: ['验证未通过', '我们无法确认你的信息，请重试。'],
       account_warning: ['RolêJunto 团队提醒', '我们收到了关于你账户的举报，请重温社区准则。'],
+      support_reply: ['工单 {protocol} 有回复', '团队已回复，点按查看。'],
       photo_rejected: ['照片未通过', '有一张照片不符合准则，已被删除。'],
       sos: ['{name} 触发了 SOS', '请立即联系。'],
       payout_sent: ['款项已发放', '我们已通过 Pix 向你的账户转入 {v}。'],

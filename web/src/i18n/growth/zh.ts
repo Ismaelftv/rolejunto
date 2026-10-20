@@ -1,6 +1,32 @@
 import type pt from './pt';
 const g: typeof pt = {
   g: {
+    adm2: {
+      tabSupport: '客服（{n}）',
+      verif: { front: '证件正面', back: '证件背面', selfie: '自拍', noImages: '没有保存的图片（旧提交）。', hint: '图片保存在加密保险库中，您通过或拒绝后会立即删除。每次打开都会记入历史。', failed: '无法打开图片。', close: '关闭' },
+      users: {
+        role: '类型', status: '状态', all: '全部', roles: { client: '客户', partner: '合作伙伴', admin: '管理员' }, statuses: { active: '正常', suspended: '已暂停', deleted: '已删除' },
+        total: '{n} 位用户', more: '加载更多', open: '打开', detail: '用户档案', close: '关闭', loading: '加载中…',
+        fName: '姓名', fEmail: '邮箱', fPhone: '电话', fCity: '城市', fLang: '语言', save: '保存更改', saved: '资料已更新。', nothing: '没有更改。',
+        emailOk: '邮箱已确认', identity: '身份', identityOk: '已验证', identityPending: '待验证', identityReview: '审核中', age: '{n} 岁', created: '注册时间', lastSeen: '最近访问',
+        stAsClient: '作为客户的预约', stAsPartner: '作为伙伴的预约', stAgainst: '被举报次数', stMade: '举报他人次数', stTickets: '工单', stSessions: '已登录设备', locked: '因多次输错密码登录被锁定',
+        partner: '合作伙伴资料', visible: '在搜索中可见', hidden: '搜索中隐藏', photos: '照片：已通过 {a}，审核中 {p}',
+        actions: '操作', verify: '标记身份为已验证', unverify: '身份改回待验证', confirmEmail: '标记邮箱为已确认',
+        sendReset: '发送重置密码', resetSent: '重置验证码已通过邮件发送。', revoke: '退出所有设备', revoked: '会话已结束，登录已解锁。',
+        suspend: '暂停', reinstate: '恢复',
+        danger: '危险区域', deleteTitle: '删除账户', deleteText: '将数据匿名化、取消未完成的预约、删除照片和验证图片并终止访问。无法撤销。',
+        deleteType: '输入“删除”以确认', deleteWord: '删除', deleteReason: '原因（记入历史）', deleteBtn: '删除账户', deleted: '账户已删除。',
+        adminProtected: '管理员账户只能直接在服务器上修改。', removed: '此账户已被删除。',
+      },
+      support: {
+        title: '客服工单', open: '待处理', answered: '已回复', closed: '已关闭', all: '全部', empty: '这里没有工单。', protocol: '编号 {p}', from: '来自 {n}',
+        subjects: { booking_payment: '预约或支付', safety: '安全', account: '我的账户', other: '其他' },
+        replyPh: '请写下回复。回复会通过邮件发送，并显示在“我的工单”中。', send: '发送回复', sent: '回复已发送。', sentNoMail: '回复已保存，但邮件未发出。请查看“系统”标签。',
+        close: '不回复直接关闭', closedToast: '工单已关闭。', booking: '预约 {id}', answeredOn: '回复于 {d}', yourReply: '已发送的回复',
+      },
+      refunds: { title: '待退还款项', text: 'SharkPay 不支持通过 API 退款。请在 SharkPay 后台退还金额，然后标记为已完成。', empty: '没有待处理的退款。', amount: '金额', done: '标记为已退还', doneToast: '已标记为已退还。', ref: '收款 {r}' },
+      mine: { title: '我的工单', empty: '您还没有提交过工单。', status: { open: '审核中', answered: '已回复', closed: '已解决' }, reply: '团队回复', booking: '关于预约 {id}', bookingHint: '关于预约 {id}。请告诉我们发生了什么。', bookingCta: '报告此预约的问题' },
+    },
     setup: {
       title: '设置您的资料', sub: '大约需要3分钟，之后随时可以修改。完成后，照片一经审核通过，您的资料就会出现在搜索中。',
       steps: ['关于您', '地点与价格', '时间'], stepOf: '第 {i} 步，共 {n} 步',

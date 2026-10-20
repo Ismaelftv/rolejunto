@@ -1,6 +1,32 @@
 // Textos das novidades: tempo real, agenda exata, login social, cupons, indicação, mapa, modo escuro e boas-vindas.
 const g = {
   g: {
+    adm2: {
+      tabSupport: 'Suporte ({n})',
+      verif: { front: 'Frente do documento', back: 'Verso do documento', selfie: 'Selfie', noImages: 'Sem imagens guardadas (envio antigo).', hint: 'As imagens ficam num cofre criptografado e são apagadas assim que você aprova ou recusa. Cada abertura fica no histórico.', failed: 'Não foi possível abrir a imagem.', close: 'Fechar' },
+      users: {
+        role: 'Tipo', status: 'Situação', all: 'Todos', roles: { client: 'Cliente', partner: 'Parceiro', admin: 'Admin' }, statuses: { active: 'Ativo', suspended: 'Suspenso', deleted: 'Removido' },
+        total: '{n} usuários', more: 'Carregar mais', open: 'Abrir', detail: 'Ficha do usuário', close: 'Fechar', loading: 'Carregando…',
+        fName: 'Nome', fEmail: 'E-mail', fPhone: 'Telefone', fCity: 'Cidade', fLang: 'Idioma', save: 'Salvar alterações', saved: 'Dados atualizados.', nothing: 'Nada mudou.',
+        emailOk: 'E-mail confirmado', identity: 'Identidade', identityOk: 'Verificada', identityPending: 'Pendente', identityReview: 'Em análise', age: '{n} anos', created: 'Cadastro', lastSeen: 'Último acesso',
+        stAsClient: 'Reservas como cliente', stAsPartner: 'Reservas como parceiro', stAgainst: 'Denúncias contra', stMade: 'Denúncias feitas', stTickets: 'Chamados', stSessions: 'Aparelhos conectados', locked: 'Login bloqueado por tentativas erradas',
+        partner: 'Perfil de parceiro', visible: 'Visível na busca', hidden: 'Oculto da busca', photos: 'Fotos: {a} aprovadas, {p} em análise',
+        actions: 'Ações', verify: 'Marcar identidade como verificada', unverify: 'Voltar identidade para pendente', confirmEmail: 'Marcar e-mail como confirmado',
+        sendReset: 'Enviar redefinição de senha', resetSent: 'Código de redefinição enviado por e-mail.', revoke: 'Desconectar de todos os aparelhos', revoked: 'Sessões encerradas e login destravado.',
+        suspend: 'Suspender', reinstate: 'Reativar',
+        danger: 'Zona de perigo', deleteTitle: 'Excluir conta', deleteText: 'Anonimiza os dados, cancela reservas abertas, apaga fotos e imagens de verificação e encerra o acesso. Não dá para desfazer.',
+        deleteType: 'Digite EXCLUIR para confirmar', deleteWord: 'EXCLUIR', deleteReason: 'Motivo (fica no histórico)', deleteBtn: 'Excluir conta', deleted: 'Conta excluída.',
+        adminProtected: 'Contas de administrador só podem ser alteradas direto no servidor.', removed: 'Esta conta foi excluída.',
+      },
+      support: {
+        title: 'Chamados de suporte', open: 'Abertos', answered: 'Respondidos', closed: 'Fechados', all: 'Todos', empty: 'Nenhum chamado por aqui.', protocol: 'Protocolo {p}', from: 'De {n}',
+        subjects: { booking_payment: 'Reserva ou pagamento', safety: 'Segurança', account: 'Minha conta', other: 'Outro' },
+        replyPh: 'Escreva a resposta. Ela vai por e-mail e aparece em "Meus chamados".', send: 'Enviar resposta', sent: 'Resposta enviada.', sentNoMail: 'Resposta salva, mas o e-mail não saiu. Confira a aba Sistema.',
+        close: 'Encerrar sem responder', closedToast: 'Chamado encerrado.', booking: 'Reserva {id}', answeredOn: 'Respondido em {d}', yourReply: 'Resposta enviada',
+      },
+      refunds: { title: 'Reembolsos para devolver', text: 'A SharkPay não devolve por API. Devolva o valor no painel da SharkPay e marque como feito.', empty: 'Nenhum reembolso pendente.', amount: 'Valor', done: 'Marcar como devolvido', doneToast: 'Marcado como devolvido.', ref: 'Cobrança {r}' },
+      mine: { title: 'Meus chamados', empty: 'Você ainda não abriu nenhum chamado.', status: { open: 'Em análise', answered: 'Respondido', closed: 'Resolvido' }, reply: 'Resposta da equipe', booking: 'Sobre a reserva {id}', bookingHint: 'Sobre a reserva {id}. Conte o que aconteceu.', bookingCta: 'Relatar problema com esta reserva' },
+    },
     setup: {
       title: 'Configure seu perfil', sub: 'Leva uns 3 minutos e você muda tudo depois. Quando terminar, seu perfil entra na busca assim que a foto for aprovada.',
       steps: ['Você', 'Onde e quanto', 'Quando'], stepOf: 'Passo {i} de {n}',

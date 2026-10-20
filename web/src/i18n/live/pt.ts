@@ -65,6 +65,7 @@ const ptL = {
       verification_approved: ['Identidade verificada', 'Tudo certo! As reservas estão liberadas.'],
       verification_rejected: ['Verificação não aprovada', 'Não conseguimos confirmar seus dados. Tente novamente.'],
       account_warning: ['Aviso da equipe RolêJunto', 'Recebemos uma denúncia sobre sua conta. Reveja as diretrizes da comunidade.'],
+      support_reply: ['Resposta ao chamado {protocol}', 'A equipe respondeu. Toque para ver.'],
       photo_rejected: ['Foto recusada', 'Uma foto não seguiu as diretrizes e foi removida.'],
       sos: ['SOS acionado por {name}', 'Entre em contato agora.'],
       payout_sent: ['Repasse enviado', 'Enviamos {v} para a sua conta via Pix.'],

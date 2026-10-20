@@ -1,6 +1,32 @@
 import type pt from './pt';
 const g: typeof pt = {
   g: {
+    adm2: {
+      tabSupport: 'Soporte ({n})',
+      verif: { front: 'Frente del documento', back: 'Reverso del documento', selfie: 'Selfie', noImages: 'Sin imágenes guardadas (envío antiguo).', hint: 'Las imágenes quedan en una bóveda cifrada y se borran en cuanto apruebas o rechazas. Cada apertura queda en el historial.', failed: 'No se pudo abrir la imagen.', close: 'Cerrar' },
+      users: {
+        role: 'Tipo', status: 'Estado', all: 'Todos', roles: { client: 'Cliente', partner: 'Socio', admin: 'Admin' }, statuses: { active: 'Activo', suspended: 'Suspendido', deleted: 'Eliminado' },
+        total: '{n} usuarios', more: 'Cargar más', open: 'Abrir', detail: 'Ficha del usuario', close: 'Cerrar', loading: 'Cargando…',
+        fName: 'Nombre', fEmail: 'E-mail', fPhone: 'Teléfono', fCity: 'Ciudad', fLang: 'Idioma', save: 'Guardar cambios', saved: 'Datos actualizados.', nothing: 'Nada cambió.',
+        emailOk: 'E-mail confirmado', identity: 'Identidad', identityOk: 'Verificada', identityPending: 'Pendiente', identityReview: 'En revisión', age: '{n} años', created: 'Registro', lastSeen: 'Último acceso',
+        stAsClient: 'Reservas como cliente', stAsPartner: 'Reservas como socio', stAgainst: 'Denuncias en contra', stMade: 'Denuncias hechas', stTickets: 'Casos', stSessions: 'Dispositivos conectados', locked: 'Acceso bloqueado por intentos fallidos',
+        partner: 'Perfil de socio', visible: 'Visible en la búsqueda', hidden: 'Oculto de la búsqueda', photos: 'Fotos: {a} aprobadas, {p} en revisión',
+        actions: 'Acciones', verify: 'Marcar identidad como verificada', unverify: 'Volver la identidad a pendiente', confirmEmail: 'Marcar e-mail como confirmado',
+        sendReset: 'Enviar restablecimiento de contraseña', resetSent: 'Código de restablecimiento enviado por e-mail.', revoke: 'Desconectar de todos los dispositivos', revoked: 'Sesiones cerradas y acceso desbloqueado.',
+        suspend: 'Suspender', reinstate: 'Reactivar',
+        danger: 'Zona de peligro', deleteTitle: 'Eliminar cuenta', deleteText: 'Anonimiza los datos, cancela reservas abiertas, borra fotos e imágenes de verificación y cierra el acceso. No se puede deshacer.',
+        deleteType: 'Escribe ELIMINAR para confirmar', deleteWord: 'ELIMINAR', deleteReason: 'Motivo (queda en el historial)', deleteBtn: 'Eliminar cuenta', deleted: 'Cuenta eliminada.',
+        adminProtected: 'Las cuentas de administrador solo se cambian directamente en el servidor.', removed: 'Esta cuenta fue eliminada.',
+      },
+      support: {
+        title: 'Casos de soporte', open: 'Abiertos', answered: 'Respondidos', closed: 'Cerrados', all: 'Todos', empty: 'No hay casos aquí.', protocol: 'Protocolo {p}', from: 'De {n}',
+        subjects: { booking_payment: 'Reserva o pago', safety: 'Seguridad', account: 'Mi cuenta', other: 'Otro' },
+        replyPh: 'Escribe la respuesta. Se envía por e-mail y aparece en "Mis casos".', send: 'Enviar respuesta', sent: 'Respuesta enviada.', sentNoMail: 'Respuesta guardada, pero el e-mail no salió. Revisa la pestaña Sistema.',
+        close: 'Cerrar sin responder', closedToast: 'Caso cerrado.', booking: 'Reserva {id}', answeredOn: 'Respondido el {d}', yourReply: 'Respuesta enviada',
+      },
+      refunds: { title: 'Reembolsos por devolver', text: 'SharkPay no devuelve por API. Devuelve el importe en el panel de SharkPay y márcalo como hecho.', empty: 'No hay reembolsos pendientes.', amount: 'Importe', done: 'Marcar como devuelto', doneToast: 'Marcado como devuelto.', ref: 'Cobro {r}' },
+      mine: { title: 'Mis casos', empty: 'Aún no has abierto ningún caso.', status: { open: 'En revisión', answered: 'Respondido', closed: 'Resuelto' }, reply: 'Respuesta del equipo', booking: 'Sobre la reserva {id}', bookingHint: 'Sobre la reserva {id}. Cuéntanos qué pasó.', bookingCta: 'Reportar un problema con esta reserva' },
+    },
     setup: {
       title: 'Configura tu perfil', sub: 'Toma unos 3 minutos y puedes cambiar todo después. Al terminar, tu perfil entra en la búsqueda en cuanto se apruebe tu foto.',
       steps: ['Tú', 'Dónde y cuánto', 'Cuándo'], stepOf: 'Paso {i} de {n}',

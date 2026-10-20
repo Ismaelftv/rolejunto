@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { PageTitle, useTitle } from '../components/ui';
 import { CONFIG } from '../lib/config';
@@ -10,10 +11,13 @@ import { useI18n } from '../i18n';
 
 // O formulário envia para POST /api/support (funciona com ou sem login).
 export default function Help() {
-  const { d, lang } = useI18n();
+  const { d, f, lang } = useI18n();
+  const [sp] = useSearchParams();
+  const rid = sp.get('reserva');
+  const bookingId = rid && /^[0-9a-f-]{36}$/i.test(rid) ? rid : undefined;
   useTitle(d.help.title);
   const { toast, user, fail } = useStore();
-  const [subject, setSubject] = useState(0);
+  const [subject, setSubject] = useState(bookingId ? 0 : 0);
   const [msg, setMsg] = useState('');
   const [email, setEmail] = useState('');
   const [err, setErr] = useState('');
@@ -35,12 +39,14 @@ export default function Help() {
           if (msg.trim().length < 5) return setErr(d.help.errMsg);
           if (!user && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setErr(d.auth.errEmail);
           setErr(''); setBusy(true);
-          post('/support', { subject: SUBJECTS[subject], message: msg.trim(), lang, ...(user ? {} : { email: email.trim() }) })
+          post('/support', { subject: SUBJECTS[subject], message: msg.trim(), lang, ...(bookingId && user ? { bookingId } : {}), ...(user ? {} : { email: email.trim() }) })
             .then(() => { setMsg(''); toast(d.help.sent); })
             .catch(fail)
             .finally(() => setBusy(false));
         }}>
           <h2 className="h-sm">{d.help.contactTitle}</h2>
+          {bookingId && <div className="notice notice-teal small">{f(d.g.adm2.mine.bookingHint, { id: bookingId.slice(0, 8) })}</div>}
+          {user && <Link to="/conta/chamados" className="small bold">{d.g.adm2.mine.title} →</Link>}
           <div className="field">
             <label htmlFor="hs">{d.help.subject}</label>
             <select id="hs" className="select" value={subject} onChange={(e) => setSubject(+e.target.value)}>

@@ -22,6 +22,7 @@ import BookingDetail from './pages/BookingDetail';
 import Payment from './pages/Payment';
 import EditProfile from './pages/EditProfile';
 import Help from './pages/Help';
+import MyTickets from './pages/MyTickets';
 import Blocked from './pages/Blocked';
 import ConfirmEmail from './pages/ConfirmEmail';
 import CompleteProfile from './pages/CompleteProfile';
@@ -64,6 +65,7 @@ export default function App() {
           <Route path="/conta/editar" element={<RequireAuth><EditProfile /></RequireAuth>} />
           <Route path="/conta/bloqueados" element={<RequireAuth><Blocked /></RequireAuth>} />
           <Route path="/ajuda" element={<Help />} />
+          <Route path="/conta/chamados" element={<RequireAuth><MyTickets /></RequireAuth>} />
           <Route path="/mensagens" element={<RequireAuth><Messages /></RequireAuth>} />
           <Route path="/mensagens/:id" element={<RequireAuth><Messages /></RequireAuth>} />
           <Route path="/conta" element={<RequireAuth><Account /></RequireAuth>} />

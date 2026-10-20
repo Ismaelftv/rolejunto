@@ -1,6 +1,32 @@
 import type pt from './pt';
 const g: typeof pt = {
   g: {
+    adm2: {
+      tabSupport: 'Support ({n})',
+      verif: { front: 'ID front', back: 'ID back', selfie: 'Selfie', noImages: 'No images stored (older submission).', hint: 'Images are kept in an encrypted vault and deleted as soon as you approve or reject. Every time one is opened it is logged.', failed: 'Could not open the image.', close: 'Close' },
+      users: {
+        role: 'Type', status: 'Status', all: 'All', roles: { client: 'Client', partner: 'Partner', admin: 'Admin' }, statuses: { active: 'Active', suspended: 'Suspended', deleted: 'Removed' },
+        total: '{n} users', more: 'Load more', open: 'Open', detail: 'User record', close: 'Close', loading: 'Loading…',
+        fName: 'Name', fEmail: 'E-mail', fPhone: 'Phone', fCity: 'City', fLang: 'Language', save: 'Save changes', saved: 'Details updated.', nothing: 'Nothing changed.',
+        emailOk: 'E-mail confirmed', identity: 'Identity', identityOk: 'Verified', identityPending: 'Pending', identityReview: 'In review', age: '{n} years old', created: 'Joined', lastSeen: 'Last seen',
+        stAsClient: 'Bookings as client', stAsPartner: 'Bookings as partner', stAgainst: 'Reports against', stMade: 'Reports made', stTickets: 'Tickets', stSessions: 'Connected devices', locked: 'Login locked after failed attempts',
+        partner: 'Partner profile', visible: 'Visible in search', hidden: 'Hidden from search', photos: 'Photos: {a} approved, {p} in review',
+        actions: 'Actions', verify: 'Mark identity as verified', unverify: 'Set identity back to pending', confirmEmail: 'Mark e-mail as confirmed',
+        sendReset: 'Send password reset', resetSent: 'Reset code sent by e-mail.', revoke: 'Sign out of all devices', revoked: 'Sessions ended and login unlocked.',
+        suspend: 'Suspend', reinstate: 'Reinstate',
+        danger: 'Danger zone', deleteTitle: 'Delete account', deleteText: 'Anonymizes the data, cancels open bookings, deletes photos and verification images and ends access. This cannot be undone.',
+        deleteType: 'Type DELETE to confirm', deleteWord: 'DELETE', deleteReason: 'Reason (kept in the log)', deleteBtn: 'Delete account', deleted: 'Account deleted.',
+        adminProtected: 'Admin accounts can only be changed directly on the server.', removed: 'This account was deleted.',
+      },
+      support: {
+        title: 'Support tickets', open: 'Open', answered: 'Answered', closed: 'Closed', all: 'All', empty: 'No tickets here.', protocol: 'Ticket {p}', from: 'From {n}',
+        subjects: { booking_payment: 'Booking or payment', safety: 'Safety', account: 'My account', other: 'Other' },
+        replyPh: 'Write the reply. It goes by e-mail and shows in "My tickets".', send: 'Send reply', sent: 'Reply sent.', sentNoMail: 'Reply saved, but the e-mail did not go out. Check the System tab.',
+        close: 'Close without replying', closedToast: 'Ticket closed.', booking: 'Booking {id}', answeredOn: 'Answered on {d}', yourReply: 'Reply sent',
+      },
+      refunds: { title: 'Refunds to return', text: 'SharkPay has no refund API. Return the amount in the SharkPay panel and mark it as done.', empty: 'No pending refunds.', amount: 'Amount', done: 'Mark as returned', doneToast: 'Marked as returned.', ref: 'Charge {r}' },
+      mine: { title: 'My tickets', empty: 'You have not opened any tickets yet.', status: { open: 'In review', answered: 'Answered', closed: 'Resolved' }, reply: 'Team reply', booking: 'About booking {id}', bookingHint: 'About booking {id}. Tell us what happened.', bookingCta: 'Report a problem with this booking' },
+    },
     setup: {
       title: 'Set up your profile', sub: 'It takes about 3 minutes and you can change everything later. Once you finish, your profile goes into search as soon as your photo is approved.',
       steps: ['You', 'Where and how much', 'When'], stepOf: 'Step {i} of {n}',

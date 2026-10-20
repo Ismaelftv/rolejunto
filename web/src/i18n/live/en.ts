@@ -66,6 +66,7 @@ const enL: LiveDict = {
       verification_approved: ['Identity verified', 'All set! Bookings are unlocked.'],
       verification_rejected: ['Verification not approved', 'We couldn’t confirm your details. Please try again.'],
       account_warning: ['Notice from the RolêJunto team', 'We received a report about your account. Please review the community guidelines.'],
+      support_reply: ['Reply to ticket {protocol}', 'Our team replied. Tap to read.'],
       photo_rejected: ['Photo rejected', 'A photo didn’t follow the guidelines and was removed.'],
       sos: ['SOS triggered by {name}', 'Get in touch now.'],
       payout_sent: ['Payout sent', 'We sent {v} to your account via Pix.'],

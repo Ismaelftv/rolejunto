@@ -5,17 +5,17 @@ import { useStore } from '../lib/store';
 import { assetUrl, get, post } from '../lib/api';
 import { useI18n } from '../i18n';
 import AdminCoupons from './AdminCoupons';
+import { AdminRefunds, AdminSupport, AdminUsers, VerifImages } from './AdminTools';
 import { AdminAudit, AdminBookings, AdminFinance, AdminReviews, AdminSystem, GrowthCharts, type HeldReview } from './AdminExtra';
 
 // Painel administrativo ligado à API. Cada ação fica registrada no log de auditoria (quem fez, quando e por quê).
 
 interface Metrics { activeUsers: number; bookingsToday: number; verificationQueue: number; openReports: number; urgentReports: number; pendingPhotos: number }
-interface Verif { id: string; userId: string; name: string; role: string; age: number; docAge: number | null; matchScore: number | null; createdAt: string }
+interface Verif { hasImages: boolean; id: string; userId: string; name: string; role: string; age: number; docAge: number | null; matchScore: number | null; createdAt: string }
 interface Report { id: string; targetId: string; targetName: string; reporterName: string; reporterId: string | null; reason: string; details: string; priority: 'high' | 'medium' | 'low'; status: string; createdAt: string }
 interface Photo { id: string; url: string; partnerName: string; createdAt: string }
-interface AdminUser { id: string; name: string; email: string; role: string; verification: string; status: 'active' | 'suspended' | 'deleted' }
 
-const TABS = ['geral', 'financeiro', 'reservas', 'verif', 'denuncias', 'conteudo', 'avaliacoes', 'usuarios', 'cupons', 'historico', 'sistema'] as const;
+const TABS = ['geral', 'financeiro', 'reservas', 'verif', 'denuncias', 'conteudo', 'avaliacoes', 'usuarios', 'suporte', 'cupons', 'historico', 'sistema'] as const;
 
 // Motivos da API → posição em d.report.reasons
 const REASON_IDX: Record<string, number> = { sexual: 0, abuse: 1, threat: 1, fake: 2, minor: 3, off_platform_payment: 4, other: 5 };
@@ -30,9 +30,7 @@ export default function Admin() {
   const [verifs, setVerifs] = useState<Verif[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [q, setQ] = useState('');
-  const [uv, setUv] = useState(0);
+  const [tickets, setTickets] = useState(0);
 
   const ago = (iso: string) => {
     const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
@@ -56,19 +54,14 @@ export default function Admin() {
   }, []);
   useEffect(() => { void load().catch(fail); }, [load]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (tab !== 'usuarios') return;
-    const t = window.setTimeout(() => {
-      get<{ items: AdminUser[] }>(`/admin/users?q=${encodeURIComponent(q.trim())}`).then((r) => setUsers(r.items)).catch(fail);
-    }, 250);
-    return () => window.clearTimeout(t);
-  }, [tab, q, uv]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { get<{ items: unknown[] }>('/admin/support?status=open').then((r) => setTickets(r.items.length)).catch(() => undefined); }, []);
 
   const act = async (path: string, ok: string, warn = false, body: unknown = {}) => {
     try { await post(path, body); toast(ok, warn ? 'warn' : 'ok'); await load(); } catch (e) { fail(e); }
   };
 
   const tabLabel = (k: typeof TABS[number]) => {
+    if (k === 'suporte') return f(d.g.adm2.tabSupport, { n: tickets });
     if (k === 'sistema') return d.live.sysAdm.tab;
     if (k === 'cupons') return d.g.adm.tab;
     if (k === 'reservas' || k === 'financeiro' || k === 'historico') return d.live.adm.tabs[k];
@@ -96,7 +89,7 @@ export default function Admin() {
         </div>
       )}
       {tab === 'reservas' && <AdminBookings />}
-      {tab === 'financeiro' && <AdminFinance />}
+      {tab === 'financeiro' && <div className="stack gap-24"><AdminFinance /><AdminRefunds /></div>}
       {tab === 'avaliacoes' && <AdminReviews items={held} reload={() => load().catch(fail)} />}
       {tab === 'historico' && <AdminAudit />}
       {tab === 'sistema' && <AdminSystem />}
@@ -108,14 +101,11 @@ export default function Admin() {
           {verifs.map((v) => (
             <div key={v.id} className="card card-pad row wrap between gap-16">
               <div className="row gap-16">
-                <div className="row gap-8">
-                  <span style={{ width: 64, height: 44, borderRadius: 8, background: 'var(--soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="id" stroke="var(--muted)" /></span>
-                  <span style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="user" stroke="var(--muted)" /></span>
-                </div>
                 <div className="stack">
                   <strong>{v.name} · {roleLabel(v.role)}</strong>
                   <span className="small muted">{f(d.admin.sent, { t: ago(v.createdAt), n: v.docAge ?? v.age })}</span>
                   {v.matchScore !== null && <span className="small bold" style={{ color: v.matchScore >= 90 ? 'var(--teal)' : 'var(--danger)' }}>{f(d.admin.match, { n: v.matchScore })}</span>}
+                  {v.hasImages ? <VerifImages id={v.id} /> : <span className="xs muted">{d.g.adm2.verif.noImages}</span>}
                 </div>
               </div>
               <div className="row gap-8">
@@ -172,33 +162,8 @@ export default function Admin() {
         </div>
       )}
 
-      {tab === 'usuarios' && (
-        <div className="stack gap-12">
-          <div className="search-inline" style={{ background: 'var(--white)', border: '1px solid var(--line)', maxWidth: 420 }}>
-            <Icon name="search" size={18} stroke="var(--muted)" />
-            <label htmlFor="uq" className="sr-only">{d.admin.searchUser}</label>
-            <input id="uq" placeholder={d.admin.searchUser} value={q} onChange={(e) => setQ(e.target.value)} />
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>{d.admin.thU.name}</th><th>{d.admin.thU.email}</th><th>{d.admin.thU.type}</th><th>{d.admin.thU.verified}</th><th>{d.admin.thU.status}</th><th>{d.admin.th.action}</th></tr></thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id}>
-                    <td className="bold">{u.name}</td><td>{u.email}</td><td>{roleLabel(u.role)}</td>
-                    <td><span className={`badge ${u.verification === 'verified' ? 'badge-teal' : 'badge-warn'}`}>{u.verification === 'verified' ? d.admin.yes : u.verification === 'in_review' ? d.admin.uStatus.review : d.admin.no}</span></td>
-                    <td>{u.status === 'active' ? d.admin.uStatus.active : u.status === 'suspended' ? d.live.suspended : d.live.removed}</td>
-                    <td>
-                      {u.role !== 'admin' && u.status === 'active' && <button className="btn btn-ghost btn-sm" onClick={() => act(`/admin/users/${u.id}/suspend`, d.admin.suspendedToast, true).then(() => setUv((n) => n + 1))}>{d.admin.suspend}</button>}
-                      {u.status === 'suspended' && <button className="btn btn-light btn-sm" onClick={() => act(`/admin/users/${u.id}/reinstate`, d.live.reinstate).then(() => setUv((n) => n + 1))}>{d.live.reinstate}</button>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {tab === 'usuarios' && <AdminUsers />}
+      {tab === 'suporte' && <AdminSupport onCount={setTickets} />}
     </div>
   );
 }

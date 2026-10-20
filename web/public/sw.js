@@ -1,5 +1,5 @@
 // Service worker do RolêJunto: deixa o app abrir rápido e funcionar com conexão instável.
-const CACHE = 'rolejunto-v7';
+const CACHE = 'rolejunto-v8';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './favicon.svg', './icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {

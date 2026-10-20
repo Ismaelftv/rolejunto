@@ -135,7 +135,7 @@ export default function BookingDetail() {
 
         <div className="tile row between gap-12 small">
           <span>{d.bdetail.help}</span>
-          <Link to="/ajuda" className="bold">{d.bdetail.helpCta}</Link>
+          <Link to={`/ajuda?reserva=${b.id}`} className="bold">{d.g.adm2.mine.bookingCta}</Link> · <Link to="/ajuda" className="bold">{d.bdetail.helpCta}</Link>
         </div>
       </div>
     </div>

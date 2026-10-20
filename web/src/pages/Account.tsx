@@ -75,7 +75,7 @@ export default function Account() {
 
         <nav className="card" style={{ padding: '4px 16px' }} aria-label={d.nav.account}>
           <div className="menu-list">
-            {([['/conta/editar', 'user', d.menu.edit], ['/notificacoes', 'bell', d.menu.notifications], ['/conta/bloqueados', 'ban', d.menu.blocked], ['/ajuda', 'chat', d.menu.help]] as const).map(([to, ic, label]) => (
+            {([['/conta/editar', 'user', d.menu.edit], ['/notificacoes', 'bell', d.menu.notifications], ['/conta/bloqueados', 'ban', d.menu.blocked], ['/conta/chamados', 'chat', d.g.adm2.mine.title], ['/ajuda', 'chat', d.menu.help]] as const).map(([to, ic, label]) => (
               <Link key={to} to={to}><Icon name={ic} size={20} stroke="var(--muted)" /> <span className="grow">{label}</span><Icon name="next" size={18} stroke="var(--muted)" /></Link>
             ))}
           </div>

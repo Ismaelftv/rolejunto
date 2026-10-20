@@ -17,6 +17,7 @@ const LOOK: Record<string, [IconName, string]> = {
   verification_approved: ['shield', 'var(--teal)'],
   verification_rejected: ['id', 'var(--danger)'],
   account_warning: ['alert', 'var(--amber)'],
+  support_reply: ['chat', 'var(--teal)'],
   photo_rejected: ['camera', 'var(--amber)'],
   sos: ['sos', 'var(--danger)'],
   urgent_report: ['flag', 'var(--danger)'],

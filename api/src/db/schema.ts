@@ -220,6 +220,7 @@ export const payments = pgTable('payments', {
   checkoutUrl: text('checkout_url'),
   expiresAt: ts('expires_at'),
   paidAt: ts('paid_at'),
+  refundDoneAt: ts('refund_done_at'), // provedor sem estorno por API: data em que a equipe devolveu o valor à mão
   raw: jsonb('raw'),
   createdAt: createdAt(),
 }, (t) => [index('payments_booking_idx').on(t.bookingId), uniqueIndex('payments_ref_uq').on(t.provider, t.providerRef)]);
@@ -289,6 +290,10 @@ export const verifications = pgTable('verifications', {
   matchScore: integer('match_score'),
   docAge: integer('doc_age'),
   reviewedBy: uuid('reviewed_by'),
+  // Imagens guardadas só enquanto a análise está aberta (cofre criptografado); apagadas ao decidir
+  frontFile: text('front_file'),
+  backFile: text('back_file'),
+  selfieFile: text('selfie_file'),
   createdAt: createdAt(),
   decidedAt: ts('decided_at'),
 });
@@ -309,6 +314,10 @@ export const supportTickets = pgTable('support_tickets', {
   subject: text('subject').notNull(),
   message: text('message').notNull(),
   status: text('status').notNull().default('open'),
+  bookingId: uuid('booking_id'),
+  reply: text('reply'),
+  repliedAt: ts('replied_at'),
+  repliedBy: uuid('replied_by'),
   createdAt: createdAt(),
 });
 

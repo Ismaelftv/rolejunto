@@ -44,6 +44,8 @@ const Env = z.object({
   MERCADOPAGO_ACCESS_TOKEN: z.string().optional(),
   MERCADOPAGO_WEBHOOK_SECRET: z.string().optional(),
   VERIFICATION_PROVIDER: z.enum(['mock']).default('mock'),
+  // Em desenvolvimento a verificação é aprovada na hora; com 'true' ela vai para análise manual no painel (como em produção)
+  VERIFICATION_MANUAL: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   // E-mail pelo Gmail: endereço completo + senha de app de 16 letras (Conta Google → Segurança → Senhas de app)
   GMAIL_USER: z.string().transform((s) => s.trim().replace(/^["']|["']$/g, '').toLowerCase()).optional(),
   GMAIL_APP_PASSWORD: z.string().transform((s) => s.replace(/^["']|["']$/g, '').replace(/\s+/g, '')).optional(),
@@ -53,6 +55,9 @@ const Env = z.object({
   RESEND_API_KEY: z.string().optional(),
   BREVO_API_KEY: z.string().optional(),
   UPLOAD_DIR: z.string().default('./data/uploads'),
+  // Cofre das imagens de verificação (documento e selfie): pasta PRIVADA, nunca servida pelo site, arquivos criptografados
+  VAULT_DIR: z.string().default('./data/vault'),
+  VAULT_KEY: z.string().optional(), // opcional; sem ela, deriva de COOKIE_SECRET
   PUBLIC_URL: z.string().default('http://localhost:3333'),
   ADMIN_EMAIL: z.string().optional(), // e-mail que vira admin no seed
   // Parceiro só aparece na busca com pelo menos 1 foto aprovada pela moderação
