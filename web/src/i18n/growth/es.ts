@@ -1,6 +1,22 @@
 import type pt from './pt';
 const g: typeof pt = {
   g: {
+    setup: {
+      title: 'Configura tu perfil', sub: 'Toma unos 3 minutos y puedes cambiar todo después. Al terminar, tu perfil entra en la búsqueda en cuanto se apruebe tu foto.',
+      steps: ['Tú', 'Dónde y cuánto', 'Cuándo'], stepOf: 'Paso {i} de {n}',
+      photoTitle: 'Tu foto', photoHint: 'Una foto tuya, de rostro, nítida y reciente. El equipo la aprueba antes de aparecer en la app.', photoAdd: 'Agregar foto', photoChange: 'Cambiar foto', photoOk: 'Foto enviada', photoPending: 'en revisión por el equipo', photoRequired: 'Sube una foto tuya para continuar.',
+      about: 'Cuéntanos sobre ti', aboutPh: 'Ej.: Me encanta la música en vivo, la playa y las buenas conversaciones. Puntual y alegre.', aboutShort: 'Escribe al menos 20 caracteres.',
+      acts: 'Lo que te gusta hacer', actsRequired: 'Elige al menos una actividad.',
+      cityLabel: 'Tu ciudad', cityPh: 'Empieza a escribir…', cityOrGps: 'Elige la ciudad de la lista o usa tu ubicación.', hoodLabel: 'Barrio (opcional)',
+      gps: 'Usar mi ubicación', gpsOk: 'Ubicación definida', gpsHint: 'Solo mostramos una zona aproximada en el mapa, nunca tu dirección.',
+      priceLabel: 'Tu precio por hora (R$)', priceRange: 'Indica un valor entre R$ 30 y R$ 1.000.', minLabel: 'Mínimo de horas', langsLabel: 'Idiomas que hablas',
+      whenTitle: '¿Cuándo sueles estar libre?', whenHint: 'Elige los atajos que encajan contigo. Los horarios exactos los ajustas después en la pestaña Agenda.',
+      presets: { evenings: 'Noches, todos los días', weekends: 'Fines de semana', weekdayNights: 'Noches entre semana', allDay: 'Todo el día' }, picked: '{n} horarios por semana', pickOne: 'Elige al menos un atajo.',
+      presetsTitle: 'Atajos', presetsHint: 'Rellena la semana de una vez (reemplaza los horarios actuales). Luego ajusta como quieras.',
+      back: 'Atrás', next: 'Continuar', finish: 'Terminar', saving: 'Guardando…', doneToast: '¡Perfil configurado! Mira abajo lo que falta para aparecer en la búsqueda.',
+      nextTag: 'Siguiente', progress: 'Perfil {p}% listo', paused: 'Tu perfil está en pausa. Activa “Visible” arriba para volver a aparecer.',
+      langNames: { PT: 'Portugués', EN: 'Inglés', ES: 'Español', FR: 'Francés', IT: 'Italiano', DE: 'Alemán', ZH: 'Chino' },
+    },
     ntf: {
       favorite_available: ['{name} abrió horarios', 'Una persona que marcaste como favorita tiene horarios libres. Reserva antes de que se acaben.'],
       referral_reward: ['Ganaste {v} de descuento', '¡Tu invitación funcionó! El cupón ya está en Perfil → Mis cupones.'],

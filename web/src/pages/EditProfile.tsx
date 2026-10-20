@@ -6,29 +6,7 @@ import { ACTIVITIES, type ActivityKey } from '../data/activities';
 import { errorText, useStore } from '../lib/store';
 import { del, post, request, type ApiUser } from '../lib/api';
 import { useI18n } from '../i18n';
-
-/** Reduz a foto para 512 px (JPEG) antes de enviar. */
-function shrink(file: File): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onerror = reject;
-    r.onload = () => {
-      const img = new Image();
-      img.onerror = reject;
-      img.onload = () => {
-        const s = 512;
-        const c = document.createElement('canvas');
-        c.width = s; c.height = s;
-        const ctx = c.getContext('2d')!;
-        const min = Math.min(img.width, img.height);
-        ctx.drawImage(img, (img.width - min) / 2, (img.height - min) / 2, min, min, 0, 0, s, s);
-        c.toBlob((b) => (b ? resolve(b) : reject(new Error('blob'))), 'image/jpeg', 0.85);
-      };
-      img.src = String(r.result);
-    };
-    r.readAsDataURL(file);
-  });
-}
+import { shrinkSquare } from '../lib/image';
 
 export default function EditProfile() {
   const { d } = useI18n();
@@ -48,7 +26,7 @@ export default function EditProfile() {
   const upload = async (file: File) => {
     try {
       const form = new FormData();
-      form.append('file', await shrink(file), 'avatar.jpg');
+      form.append('file', await shrinkSquare(file), 'avatar.jpg');
       const r = await request<{ user: ApiUser }>('POST', '/me/avatar', form);
       setUser(r.user);
       toast(d.edit.saved);

@@ -514,6 +514,57 @@ describe('avisos por e-mail', () => {
   });
 });
 
+describe('assistente de configuração do parceiro', () => {
+  test('uma chamada salva perfil e agenda; o passo seguinte vai avançando e a visibilidade é automática', async () => {
+    const c = new Client();
+    await c.post('/auth/signup', { name: 'Rita Setup', email: 'rita.setup@x.com', password: 'senhasegura1', birthDate: adult, role: 'partner', acceptTerms: true, privacyConsent: true });
+    let ck = (await c.get('/partner/profile')).body.checklist;
+    assert.equal(ck.next, 'hasActivities');
+    assert.equal(ck.setupDone, false);
+    assert.ok(ck.progress < 50);
+    const r = await c.put('/partner/setup', {
+      profile: { about: 'Gosto de música ao vivo e boa conversa.', bio: 'Música ao vivo.', priceCents: 12000, minHours: 2, languages: ['PT', 'EN'], activities: ['bar', 'show'], city: 'Curitiba', neighborhood: 'Batel' },
+      slots: [{ weekday: 5, start: '19:00' }, { weekday: 5, start: '19:30' }, { weekday: 6, start: '20:00' }],
+    });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    ck = r.body.checklist;
+    assert.equal(ck.hasActivities && ck.hasLocation && ck.hasAvailability, true);
+    assert.equal(ck.visible, true); // perfil novo já nasce visível; a busca ainda exige e-mail, identidade e foto aprovada
+    assert.equal(ck.setupDone, false); // falta a foto
+    assert.equal(ck.next, 'hasPhoto');
+    await c.upload('/partner/photos', ['photo']);
+    ck = (await c.get('/partner/profile')).body.checklist;
+    assert.equal(ck.setupDone, true); // foto em análise não trava o assistente
+    assert.equal(ck.next, 'emailVerified');
+    assert.equal(ck.searchable, false);
+    assert.ok(!(await new Client().get('/partners?radiusKm=50&city=Curitiba')).body.items.some((p: { name: string }) => p.name === 'Rita Setup'));
+    // conteúdo inválido: nada é gravado (nem a agenda)
+    const bad = await c.put('/partner/setup', { profile: { about: 'me chama no zap 11 99999-8888' }, slots: [{ weekday: 1, start: '10:00' }] });
+    assert.equal(bad.status, 422);
+    const slots = (await c.get('/partner/profile')).body.availability;
+    assert.equal(slots.length, 3);
+    // horário fora do padrão é recusado
+    assert.equal((await c.put('/partner/setup', { slots: [{ weekday: 1, start: '10:15' }] })).status, 400);
+  });
+
+  test('só parceiros usam o assistente; cada um mexe apenas no que é seu', async () => {
+    const cliente = await login('cliente@rolejunto.local');
+    assert.equal((await cliente.put('/partner/setup', { slots: [] })).status, 403);
+    assert.equal((await new Client().put('/partner/setup', { slots: [] })).status, 401);
+    const marina = await login('marina@rolejunto.local');
+    const before = (await marina.get('/partner/profile')).body.availability.length;
+    const rita = await login('rita.setup@x.com', 'senhasegura1');
+    await rita.put('/partner/setup', { slots: [{ weekday: 2, start: '21:00' }] });
+    assert.equal((await marina.get('/partner/profile')).body.availability.length, before);
+  });
+
+  test('lista de cidades pública', async () => {
+    const r = await new Client().get('/cities');
+    assert.equal(r.status, 200);
+    assert.ok(r.body.items.includes('São Paulo') && r.body.items.includes('Curitiba'));
+  });
+});
+
 describe('login com Google e Apple', () => {
   const tok = (sub: string, email: string, verified = '1', name = '') => `fake-oauth-token|${sub}|${email}|${verified}|${name}`;
 

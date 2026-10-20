@@ -8,6 +8,7 @@ import { brDate, useStore, type BookingStatus } from '../lib/store';
 import { assetUrl, get, put, request } from '../lib/api';
 import { useI18n } from '../i18n';
 import { ScheduleEditor } from '../components/ScheduleEditor';
+import { LANGS, PartnerSetup } from '../components/PartnerSetup';
 
 // Painel do parceiro ligado à API: pedidos, perfil, agenda semanal, fotos e ganhos.
 interface ProfileRes {
@@ -16,7 +17,7 @@ interface ProfileRes {
   photos: { id: string; url: string; status: 'pending' | 'approved' | 'rejected' }[];
   checklist: Checklist;
 }
-interface Checklist { emailVerified: boolean; identityVerified: boolean; hasPhoto: boolean; photoPending: boolean; hasLocation: boolean; hasActivities: boolean; hasAvailability: boolean; visible: boolean; searchable: boolean }
+interface Checklist { emailVerified: boolean; identityVerified: boolean; hasPhoto: boolean; photoPending: boolean; hasLocation: boolean; hasActivities: boolean; hasAvailability: boolean; visible: boolean; searchable: boolean; setupDone: boolean; next: string | null; progress: number }
 interface Earnings { availableCents: number; pendingCents: number; monthCents: number; history: { bookingId: string; date: string; clientName: string; activity: string; hours: number; amountCents: number; paidOut: boolean }[] }
 
 const firstSentence = (t: string) => { const s = t.trim().split(/(?<=[.!?])\s/)[0] ?? ''; return (s.length > 140 ? `${s.slice(0, 137)}…` : s); };
@@ -35,9 +36,12 @@ export default function PartnerDashboard() {
   const [where, setWhere] = useState({ hood: '', city: '', hasLoc: false });
   const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
   const [check, setCheck] = useState<Checklist | null>(null);
+  const [raw, setRaw] = useState<ProfileRes['profile']>(null);
+  const [cities, setCities] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     const r = await get<ProfileRes>('/partner/profile');
+    setRaw(r.profile);
     if (r.profile) {
       setProfile({ bio: r.profile.about || r.profile.bio, price: r.profile.priceCents / 100, minHours: r.profile.minHours, languages: r.profile.languages.join(', '), tags: r.profile.activities as ActivityKey[], active: r.profile.visible });
       setRating(r.profile.ratingCount ? r.profile.ratingAvg : null);
@@ -50,6 +54,7 @@ export default function PartnerDashboard() {
   useEffect(() => {
     void load().catch(fail);
     void get<Earnings>('/partner/earnings').then(setEarn).catch(() => {});
+    void get<{ items: string[] }>('/cities').then((r) => setCities(r.items)).catch(() => {});
     void refreshBookings().catch(() => {});
   }, [load]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -112,7 +117,7 @@ export default function PartnerDashboard() {
     <div className="container">
       <PageTitle title={f(d.partner.title, { name: user?.name ?? '' })} sub={d.partner.sub} />
       <div className="row wrap between gap-12" style={{ marginBottom: 16 }}>
-        <div className="seg" style={{ flex: '1 1 520px', overflowX: 'auto' }} role="tablist">
+        <div className="seg seg-scroll" style={{ flex: "1 1 520px" }} role="tablist">
           {TABS.map((k) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{d.partner.tabs[k]}</button>)}
         </div>
         <label className="check card" style={{ padding: '10px 14px', alignItems: 'center' }}>
@@ -123,9 +128,18 @@ export default function PartnerDashboard() {
 
       {tab === 'geral' && (
         <div className="stack gap-24">
-          {check && !check.searchable && (
+          {check && !check.setupDone && (
+            <PartnerSetup
+              state={{ profile: raw, photos, availabilityCount: slots.length, checklist: check }}
+              onChanged={load}
+            />
+          )}
+          {check && check.setupDone && !check.searchable && (
             <div className="card card-pad stack gap-12" style={{ borderColor: 'var(--accent)' }}>
-              <h2 className="h-sm">{d.live.check.title}</h2>
+              <div className="row between gap-12">
+                <h2 className="h-sm">{d.live.check.title}</h2>
+                <span className="badge badge-teal">{f(d.g.setup.progress, { p: check.progress })}</span>
+              </div>
               <ul className="stack gap-8" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                 {([
                   ['emailVerified', d.live.check.email, () => nav('/confirmar-email?next=%2Fpainel')],
@@ -137,6 +151,7 @@ export default function PartnerDashboard() {
                   ['visible', d.live.check.visible, () => void setVisible(true)],
                 ] as const).map(([k, label, go]) => {
                   const ok = check[k];
+                  const isNext = check.next === k;
                   return (
                     <li key={k} className="row between gap-12" data-check={k} data-ok={ok}>
                       <span className="row gap-8 small" style={{ fontWeight: ok ? 500 : 700, color: ok ? 'var(--muted)' : 'var(--ink)' }}>
@@ -145,13 +160,14 @@ export default function PartnerDashboard() {
                         </span>
                         {label}
                       </span>
-                      {!ok && go && <button className="btn btn-light btn-sm" onClick={go}>{d.live.check.go}</button>}
+                      {!ok && go && <button className={`btn ${isNext ? 'btn-primary' : 'btn-light'} btn-sm`} onClick={go}>{isNext ? d.g.setup.nextTag : d.live.check.go}</button>}
                     </li>
                   );
                 })}
               </ul>
             </div>
           )}
+          {check && check.setupDone && !profile.active && <div className="notice notice-warn"><Icon name="alert" /> {d.g.setup.paused}</div>}
           {check?.searchable && <div className="notice notice-teal"><Icon name="check" /> {d.live.check.done}</div>}
           <div className="dash-grid">
             <div className="stat"><span className="small muted bold">{d.partner.stats.pending}</span><span className="v">{pend.length}</span></div>
@@ -219,8 +235,9 @@ export default function PartnerDashboard() {
             <span className="label">{d.live.where.title}</span>
             <div className="grid-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 12 }}>
               <div className="field"><label htmlFor="hood">{d.live.where.hood}</label><input id="hood" className="input" maxLength={80} value={where.hood} onChange={(e) => setWhere({ ...where, hood: e.target.value })} /></div>
-              <div className="field"><label htmlFor="city">{d.live.where.city}</label><input id="city" className="input" maxLength={80} autoComplete="address-level2" value={where.city} onChange={(e) => setWhere({ ...where, city: e.target.value })} /></div>
+              <div className="field"><label htmlFor="city">{d.live.where.city}</label><input id="city" className="input" list="pd-cities" maxLength={80} autoComplete="address-level2" value={where.city} onChange={(e) => setWhere({ ...where, city: e.target.value })} /></div>
             </div>
+            <datalist id="pd-cities">{cities.map((c) => <option key={c} value={c} />)}</datalist>
             <div className="row wrap gap-8">
               <button type="button" className="btn btn-light btn-sm" onClick={pickGps}><Icon name="pin" size={16} /> {d.live.where.useGps}</button>
               <span className="badge" style={{ alignSelf: 'center', background: gps || where.hasLoc ? 'var(--teal-soft)' : 'var(--accent-soft)', color: gps || where.hasLoc ? 'var(--teal)' : 'var(--accent)' }}>
@@ -232,7 +249,16 @@ export default function PartnerDashboard() {
           <div className="grid-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 12 }}>
             <div className="field"><label htmlFor="pr">{d.partner.price}</label><input id="pr" type="number" min={30} max={1000} className="input" value={profile.price} onChange={(e) => setProfile({ ...profile, price: +e.target.value })} /></div>
             <div className="field"><label htmlFor="mh">{d.partner.minH}</label><select id="mh" className="select" value={profile.minHours} onChange={(e) => setProfile({ ...profile, minHours: +e.target.value })}>{[1, 2, 3, 4].map((n) => <option key={n} value={n}>{f(d.common.hoursShort, { n })}</option>)}</select></div>
-            <div className="field"><label htmlFor="lg">{d.partner.langs}</label><input id="lg" className="input" value={profile.languages} onChange={(e) => setProfile({ ...profile, languages: e.target.value })} /></div>
+            <div className="stack gap-8">
+              <span className="label">{d.partner.langs}</span>
+              <div className="row wrap gap-8">
+                {LANGS.map((l) => {
+                  const cur = profile.languages.split(/[,;/]/).map((x) => x.trim().toUpperCase()).filter(Boolean);
+                  const on = cur.includes(l);
+                  return <button type="button" key={l} className="chip" aria-pressed={on} style={on ? { background: 'var(--ink)', color: '#fff' } : undefined} onClick={() => setProfile({ ...profile, languages: (on ? cur.filter((x) => x !== l) : [...cur, l]).join(', ') })}>{d.g.setup.langNames[l as keyof typeof d.g.setup.langNames]}</button>;
+                })}
+              </div>
+            </div>
           </div>
           <span className="hint">{f(d.partner.feeHint, { p: money(profile.price), n: Math.round(CONFIG.serviceFeeRate * 100) })}</span>
           <button className="btn btn-primary btn-sq" style={{ alignSelf: 'flex-start' }}>{d.partner.saveProfile}</button>

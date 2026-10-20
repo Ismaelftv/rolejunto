@@ -1,6 +1,22 @@
 import type pt from './pt';
 const g: typeof pt = {
   g: {
+    setup: {
+      title: 'Set up your profile', sub: 'It takes about 3 minutes and you can change everything later. Once you finish, your profile goes into search as soon as your photo is approved.',
+      steps: ['You', 'Where and how much', 'When'], stepOf: 'Step {i} of {n}',
+      photoTitle: 'Your photo', photoHint: 'A clear, recent photo of your face. Our team approves it before it shows in the app.', photoAdd: 'Add photo', photoChange: 'Change photo', photoOk: 'Photo uploaded', photoPending: 'being reviewed by our team', photoRequired: 'Upload a photo of yourself to continue.',
+      about: 'Tell us about yourself', aboutPh: 'E.g. I love live music, the beach and good conversation. Punctual and cheerful.', aboutShort: 'Write at least 20 characters.',
+      acts: 'What you like to do', actsRequired: 'Choose at least one activity.',
+      cityLabel: 'Your city', cityPh: 'Start typing…', cityOrGps: 'Pick a city from the list or use your location.', hoodLabel: 'Neighborhood (optional)',
+      gps: 'Use my location', gpsOk: 'Location set', gpsHint: 'We only show an approximate area on the map, never your address.',
+      priceLabel: 'Your hourly rate (R$)', priceRange: 'Enter a value between R$ 30 and R$ 1,000.', minLabel: 'Minimum hours', langsLabel: 'Languages you speak',
+      whenTitle: 'When are you usually free?', whenHint: 'Pick the shortcuts that fit you. You can fine-tune exact times later in the Schedule tab.',
+      presets: { evenings: 'Evenings, every day', weekends: 'Weekends', weekdayNights: 'Weeknights', allDay: 'All day' }, picked: '{n} time slots per week', pickOne: 'Pick at least one shortcut.',
+      presetsTitle: 'Shortcuts', presetsHint: 'Fills the whole week at once (replaces your current times). Then adjust as you like.',
+      back: 'Back', next: 'Continue', finish: 'Finish', saving: 'Saving…', doneToast: 'Profile set up! See below what is left to appear in search.',
+      nextTag: 'Next', progress: 'Profile {p}% ready', paused: 'Your profile is paused. Turn on “Visible” at the top to appear again.',
+      langNames: { PT: 'Portuguese', EN: 'English', ES: 'Spanish', FR: 'French', IT: 'Italian', DE: 'German', ZH: 'Chinese' },
+    },
     ntf: {
       favorite_available: ['{name} has open times', 'Someone you favorited has free times. Book before they’re gone.'],
       referral_reward: ['You earned {v} off', 'Your referral worked! The coupon is in Profile → My coupons.'],

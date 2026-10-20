@@ -4,6 +4,7 @@ import { Icon } from './Icon';
 import { del, get, post, put } from '../lib/api';
 import { brDate, useStore } from '../lib/store';
 import { useI18n } from '../i18n';
+import { PRESET_KEYS, presetSlots, type PresetKey } from '../lib/schedulePresets';
 
 type Slot = { weekday: number; start: string };
 interface Off { id: string; startDate: string; endDate: string; note: string }
@@ -30,6 +31,11 @@ export function ScheduleEditor({ initial, onSaved }: { initial: Slot[]; onSaved:
   const loadOff = useCallback(() => get<{ items: Off[] }>('/partner/time-off').then((r) => setOffs(r.items)), []);
   useEffect(() => { void loadOff().catch(() => {}); }, [loadOff]);
 
+  const applyPreset = (k: PresetKey) => {
+    const m: Record<number, string[]> = {};
+    for (const wd of WEEKDAYS) m[wd] = presetSlots([k]).filter((x) => x.weekday === wd).map((x) => x.start).sort();
+    setByDay(m); setDirty(true);
+  };
   const change = (wd: number, list: string[]) => { setByDay((m) => ({ ...m, [wd]: [...new Set(list)].sort() })); setDirty(true); };
 
   const save = async () => {
@@ -55,6 +61,13 @@ export function ScheduleEditor({ initial, onSaved }: { initial: Slot[]; onSaved:
     <div className="stack gap-16">
       <div className="card card-pad stack gap-12">
         <div className="stack"><h2 className="h-sm">{s.title}</h2><span className="small muted">{s.text}</span></div>
+        <div className="stack gap-8">
+          <span className="label">{d.g.setup.presetsTitle}</span>
+          <div className="row wrap gap-8">
+            {PRESET_KEYS.map((k) => <button type="button" key={k} className="chip" onClick={() => applyPreset(k)}>{d.g.setup.presets[k]}</button>)}
+          </div>
+          <span className="hint">{d.g.setup.presetsHint}</span>
+        </div>
         <div>
           {WEEKDAYS.map((wd, di) => {
             const list = byDay[wd] ?? [];

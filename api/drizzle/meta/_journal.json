@@ -36,6 +36,13 @@
       "when": 1792508228831,
       "tag": "0004_growth_features",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792594628831,
+      "tag": "0005_partner_visible_default",
+      "breakpoints": true
     }
   ]
 }

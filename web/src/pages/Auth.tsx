@@ -121,7 +121,8 @@ export function Signup() {
     try {
       await signup({ name: fm.name.trim(), email: fm.email.trim(), password: fm.pass, role: fm.role, birthDate: fm.birth, lang });
       const next = params.get('next');
-      const verify = `/verificacao${next ? `?next=${encodeURIComponent(next)}` : ''}`;
+      // Parceiro: depois do e-mail vai direto para o assistente de configuração (a verificação de identidade é um dos passos da lista)
+      const verify = fm.role === 'parceiro' ? '/painel' : `/verificacao${next ? `?next=${encodeURIComponent(next)}` : ''}`;
       nav(`/confirmar-email?next=${encodeURIComponent(verify)}`, { replace: true });
     } catch (ex) {
       const code = ex instanceof ApiError ? ex.code : '';

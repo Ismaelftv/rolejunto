@@ -9,7 +9,7 @@ import { parse, requireRole, type Ctx } from '../lib/context.js';
 import { E } from '../lib/errors.js';
 import { approx, bbox, displayKm, distanceKm } from '../lib/geo.js';
 import { moderateText } from '../lib/moderation.js';
-import { cityCenter } from '../lib/cities.js';
+import { CITY_NAMES, cityCenter } from '../lib/cities.js';
 import { ageFrom } from '../lib/security.js';
 import { imageExt } from '../providers/storage.js';
 import { ACTIVE_STATUSES, hadCompletedPublicMeeting, participants } from './bookingService.js';
@@ -77,7 +77,17 @@ export async function searchChecklist(db: DB, u: { id: string; verification: str
     hasPhoto: !config.REQUIRE_PARTNER_PHOTO || pics.some((x) => x.status === 'approved'),
     visible: !!p?.visible,
   };
-  return { ...c, photoPending: pics.some((x) => x.status === 'pending'), searchable: Object.values(c).every(Boolean) };
+  const photoPending = pics.some((x) => x.status === 'pending');
+  // Ordem sugerida ao parceiro; "next" é o primeiro passo que ainda depende dele (foto em análise não trava).
+  const order = ['hasActivities', 'hasLocation', 'hasAvailability', 'hasPhoto', 'emailVerified', 'identityVerified', 'visible'] as const;
+  const pending = order.filter((k) => !c[k] && !(k === 'hasPhoto' && photoPending));
+  const done = order.filter((k) => c[k]).length;
+  return {
+    ...c, photoPending, searchable: Object.values(c).every(Boolean),
+    // O assistente de configuração só some quando o essencial do perfil está pronto
+    setupDone: c.hasActivities && c.hasLocation && c.hasAvailability && (c.hasPhoto || photoPending),
+    next: pending[0] ?? null, progress: Math.round((done / order.length) * 100),
+  };
 }
 
 export default function partnerRoutes(app: FastifyInstance, ctx: Ctx) {
@@ -184,18 +194,20 @@ export default function partnerRoutes(app: FastifyInstance, ctx: Ctx) {
     return { profile: p ?? null, availability: slots, photos: pics, checklist: await searchChecklist(ctx.db, u) };
   });
 
-  app.put('/partner/profile', async (req) => {
-    const u = requireRole(req, 'partner');
-    // Atualização parcial: envie só o que mudou.
-    const b = parse(z.object({
-      bio: z.string().trim().max(140), about: z.string().trim().max(1000),
-      translations: z.partialRecord(z.enum(['pt', 'es', 'en', 'zh']), z.object({ bio: z.string().trim().max(140).optional(), about: z.string().trim().max(1000).optional() })),
-      priceCents: z.number().int().min(3000).max(100000), minHours: z.number().int().min(1).max(8),
-      languages: z.array(z.string().trim().max(20)).max(8), activities: z.array(z.enum(ACTIVITIES)).min(1).max(11),
-      neighborhood: z.string().trim().max(80), city: z.string().trim().max(80),
-      lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180),
-      visible: z.boolean(),
-    }).partial(), req.body);
+  const profileSchema = z.object({
+    bio: z.string().trim().max(140), about: z.string().trim().max(1000),
+    translations: z.partialRecord(z.enum(['pt', 'es', 'en', 'zh']), z.object({ bio: z.string().trim().max(140).optional(), about: z.string().trim().max(1000).optional() })),
+    priceCents: z.number().int().min(3000).max(100000), minHours: z.number().int().min(1).max(8),
+    languages: z.array(z.string().trim().max(20)).max(8), activities: z.array(z.enum(ACTIVITIES)).min(1).max(11),
+    neighborhood: z.string().trim().max(80), city: z.string().trim().max(80),
+    lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180),
+    visible: z.boolean(),
+  }).partial();
+  const slotsSchema = z.array(z.object({ weekday: z.number().int().min(0).max(6), start: z.string().regex(/^([01]\d|2[0-3]):(00|30)$/) })).max(200);
+  type User = ReturnType<typeof requireRole>;
+
+  /** Grava o perfil do parceiro (atualização parcial). Valida tudo antes de escrever. */
+  async function saveProfile(u: User, b: z.infer<typeof profileSchema>) {
     const texts = [b.bio, b.about, ...Object.values(b.translations ?? {}).flatMap((t) => [t.bio, t.about])].filter((t): t is string => !!t);
     for (const text of texts) {
       const m = moderateText(text);
@@ -227,21 +239,44 @@ export default function partnerRoutes(app: FastifyInstance, ctx: Ctx) {
     const [p] = await ctx.db.insert(partnerProfiles).values({ userId: u.id, ...values })
       .onConflictDoUpdate({ target: partnerProfiles.userId, set: values }).returning();
     if (b.visible && current && !current.visible) await notifyFavorites(u.id, u.name); // voltou a aparecer
+    return p;
+  }
+
+  /** Troca a agenda semanal inteira. */
+  async function saveAvailability(u: User, slots: z.infer<typeof slotsSchema>) {
+    const before = await ctx.db.select().from(availability).where(eq(availability.partnerId, u.id));
+    const had = new Set(before.map((x) => `${x.weekday}-${x.start}`));
+    await ctx.db.delete(availability).where(eq(availability.partnerId, u.id));
+    if (slots.length) await ctx.db.insert(availability).values(slots.map((s) => ({ partnerId: u.id, ...s }))).onConflictDoNothing();
+    const added = slots.filter((x) => !had.has(`${x.weekday}-${x.start}`)).length;
+    if (added > 0) await notifyFavorites(u.id, u.name); // abriu horários novos
+    return { count: slots.length, added };
+  }
+
+  app.put('/partner/profile', async (req) => {
+    const u = requireRole(req, 'partner');
+    const p = await saveProfile(u, parse(profileSchema, req.body));
     return { profile: p, checklist: await searchChecklist(ctx.db, u) };
   });
 
   app.put('/partner/availability', async (req) => {
     const u = requireRole(req, 'partner');
-    // horários exatos: qualquer hora cheia ou meia hora (ex.: 19:00, 19:30)
-    const b = parse(z.object({ slots: z.array(z.object({ weekday: z.number().int().min(0).max(6), start: z.string().regex(/^([01]\d|2[0-3]):(00|30)$/) })).max(200) }), req.body);
-    const before = await ctx.db.select().from(availability).where(eq(availability.partnerId, u.id));
-    const had = new Set(before.map((x) => `${x.weekday}-${x.start}`));
-    await ctx.db.delete(availability).where(eq(availability.partnerId, u.id));
-    if (b.slots.length) await ctx.db.insert(availability).values(b.slots.map((s) => ({ partnerId: u.id, ...s }))).onConflictDoNothing();
-    const added = b.slots.filter((x) => !had.has(`${x.weekday}-${x.start}`)).length;
-    if (added > 0) await notifyFavorites(u.id, u.name); // abriu horários novos
-    return { ok: true, count: b.slots.length, added };
+    const b = parse(z.object({ slots: slotsSchema }), req.body); // horários exatos: hora cheia ou meia hora (19:00, 19:30)
+    const r = await saveAvailability(u, b.slots);
+    return { ok: true, ...r };
   });
+
+  // Assistente de configuração: perfil + agenda numa só chamada (tudo validado antes de gravar)
+  app.put('/partner/setup', async (req) => {
+    const u = requireRole(req, 'partner');
+    const b = parse(z.object({ profile: profileSchema.optional(), slots: slotsSchema.optional() }), req.body);
+    const profile = b.profile ? await saveProfile(u, b.profile) : null;
+    const avail = b.slots ? await saveAvailability(u, b.slots) : null;
+    return { profile, availability: avail, checklist: await searchChecklist(ctx.db, u) };
+  });
+
+  // Cidades que o app reconhece (lista de escolha; a localização também pode vir do GPS)
+  app.get('/cities', async () => ({ items: CITY_NAMES }));
 
   // ---------- Folgas e férias ----------
   app.get('/partner/time-off', async (req) => {

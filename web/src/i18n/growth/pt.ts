@@ -1,6 +1,22 @@
 // Textos das novidades: tempo real, agenda exata, login social, cupons, indicação, mapa, modo escuro e boas-vindas.
 const g = {
   g: {
+    setup: {
+      title: 'Configure seu perfil', sub: 'Leva uns 3 minutos e você muda tudo depois. Quando terminar, seu perfil entra na busca assim que a foto for aprovada.',
+      steps: ['Você', 'Onde e quanto', 'Quando'], stepOf: 'Passo {i} de {n}',
+      photoTitle: 'Sua foto', photoHint: 'Uma foto sua, de rosto, nítida e recente. A equipe aprova antes de aparecer no app.', photoAdd: 'Adicionar foto', photoChange: 'Trocar foto', photoOk: 'Foto enviada', photoPending: 'em análise pela equipe', photoRequired: 'Envie uma foto sua para continuar.',
+      about: 'Fale um pouco de você', aboutPh: 'Ex.: Adoro música ao vivo, praia e boas conversas. Pontual e animada.', aboutShort: 'Escreva pelo menos 20 caracteres.',
+      acts: 'O que você gosta de fazer', actsRequired: 'Escolha pelo menos uma atividade.',
+      cityLabel: 'Sua cidade', cityPh: 'Comece a digitar…', cityOrGps: 'Escolha a cidade da lista ou use sua localização.', hoodLabel: 'Bairro (opcional)',
+      gps: 'Usar minha localização', gpsOk: 'Localização definida', gpsHint: 'Mostramos só uma região aproximada no mapa, nunca o seu endereço.',
+      priceLabel: 'Seu valor por hora (R$)', priceRange: 'Informe um valor entre R$ 30 e R$ 1.000.', minLabel: 'Mínimo de horas', langsLabel: 'Idiomas que você fala',
+      whenTitle: 'Quando você costuma estar livre?', whenHint: 'Escolha os atalhos que combinam com você. Os horários exatos você ajusta depois, na aba Agenda.',
+      presets: { evenings: 'Noites, todos os dias', weekends: 'Fins de semana', weekdayNights: 'Dias úteis à noite', allDay: 'Dia todo' }, picked: '{n} horários por semana', pickOne: 'Escolha pelo menos um atalho.',
+      presetsTitle: 'Atalhos', presetsHint: 'Preenche a semana de uma vez (troca os horários atuais). Depois ajuste como quiser.',
+      back: 'Voltar', next: 'Continuar', finish: 'Concluir', saving: 'Salvando…', doneToast: 'Perfil configurado! Veja abaixo o que falta para aparecer na busca.',
+      nextTag: 'Próximo', progress: 'Perfil {p}% pronto', paused: 'Seu perfil está pausado. Ligue “Visível” no topo para voltar a aparecer.',
+      langNames: { PT: 'Português', EN: 'Inglês', ES: 'Espanhol', FR: 'Francês', IT: 'Italiano', DE: 'Alemão', ZH: 'Chinês' },
+    },
     ntf: {
       favorite_available: ['{name} abriu horários', 'Uma pessoa que você favoritou está com horários livres. Reserve antes que acabem.'],
       referral_reward: ['Você ganhou {v} de desconto', 'Sua indicação deu certo! O cupom já está em Perfil → Meus cupons.'],

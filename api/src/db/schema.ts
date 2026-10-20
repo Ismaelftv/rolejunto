@@ -97,7 +97,7 @@ export const partnerProfiles = pgTable('partner_profiles', {
   // Localização já arredondada (~1 km) — nunca guardamos o endereço exato do parceiro.
   approxLat: doublePrecision('approx_lat'),
   approxLng: doublePrecision('approx_lng'),
-  visible: boolean('visible').notNull().default(false),
+  visible: boolean('visible').notNull().default(true),
   ratingAvg: real('rating_avg'),
   ratingCount: integer('rating_count').notNull().default(0),
   responseMinutes: integer('response_minutes').notNull().default(60),

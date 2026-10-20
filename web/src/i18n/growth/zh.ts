@@ -1,6 +1,22 @@
 import type pt from './pt';
 const g: typeof pt = {
   g: {
+    setup: {
+      title: '设置您的资料', sub: '大约需要3分钟，之后随时可以修改。完成后，照片一经审核通过，您的资料就会出现在搜索中。',
+      steps: ['关于您', '地点与价格', '时间'], stepOf: '第 {i} 步，共 {n} 步',
+      photoTitle: '您的照片', photoHint: '一张清晰、近期的本人正面照片。团队审核通过后才会在应用中显示。', photoAdd: '添加照片', photoChange: '更换照片', photoOk: '照片已上传', photoPending: '团队审核中', photoRequired: '请上传一张本人照片以继续。',
+      about: '介绍一下自己', aboutPh: '例如：喜欢现场音乐、海滩和愉快的交谈。守时、开朗。', aboutShort: '请至少写20个字符。',
+      acts: '您喜欢做什么', actsRequired: '请至少选择一项活动。',
+      cityLabel: '您所在的城市', cityPh: '开始输入…', cityOrGps: '请从列表中选择城市，或使用您的位置。', hoodLabel: '街区（可选）',
+      gps: '使用我的位置', gpsOk: '已设置位置', gpsHint: '地图上只显示大致区域，绝不显示您的地址。',
+      priceLabel: '您的每小时价格（R$）', priceRange: '请输入 R$ 30 至 R$ 1,000 之间的金额。', minLabel: '最少小时数', langsLabel: '您会说的语言',
+      whenTitle: '您通常什么时候有空？', whenHint: '选择适合您的快捷方式。具体时间稍后可在“档期”标签中调整。',
+      presets: { evenings: '每天晚上', weekends: '周末', weekdayNights: '工作日晚上', allDay: '全天' }, picked: '每周 {n} 个时段', pickOne: '请至少选择一个快捷方式。',
+      presetsTitle: '快捷方式', presetsHint: '一次性填满整周（会替换当前时间）。之后可随意调整。',
+      back: '返回', next: '继续', finish: '完成', saving: '保存中…', doneToast: '资料已设置！请在下方查看出现在搜索中还差什么。',
+      nextTag: '下一步', progress: '资料已完成 {p}%', paused: '您的资料已暂停。请打开顶部的“可见”以重新出现。',
+      langNames: { PT: '葡萄牙语', EN: '英语', ES: '西班牙语', FR: '法语', IT: '意大利语', DE: '德语', ZH: '中文' },
+    },
     ntf: {
       favorite_available: ['{name} 开放了时间', '你收藏的人有空闲时间了，趁早预约。'],
       referral_reward: ['你获得了 {v} 优惠', '邀请成功！优惠券已放在 个人资料 → 我的优惠券。'],
