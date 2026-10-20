@@ -44,7 +44,7 @@ export function explainMailError(err: unknown): MailProblem {
   return 'unknown';
 }
 
-const DEFAULT_FROM = 'RolêJunto <nao-responda@rolejunto.com.br>';
+const DEFAULT_FROM = 'RolêJunto <nao-responda@rolejunto.com>';
 const parseFrom = (from: string) => { const m = from.match(/^\s*"?([^"<]*)"?\s*<([^>]+)>\s*$/); return m ? { name: m[1].trim() || 'RolêJunto', email: m[2].trim() } : { name: 'RolêJunto', email: from.trim() }; };
 
 interface Driver { mode: MailMode; from: string; send(to: string, m: MailContent): Promise<void>; check(): Promise<void> }

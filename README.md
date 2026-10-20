@@ -192,7 +192,7 @@ O Gmail não aceita a senha normal da conta em aplicativos. É preciso criar uma
 
 **Limite do Gmail:**
 - **conta gratuita:** cerca de **500 e-mails por dia**. Isso dá para o lançamento. Conte 1 e-mail por cadastro e uns 5 a 8 por reserva completa, somando os avisos.
-- **Google Workspace** (e-mail com seu domínio, como `contato@rolejunto.com.br`): até **2.000 por dia**, e o remetente fica mais profissional.
+- **Google Workspace** (e-mail com seu domínio, como `contato@rolejunto.com`): até **2.000 por dia**, e o remetente fica mais profissional.
 
 Quando o volume crescer (algumas dezenas de reservas por dia), troque o Gmail pelo Brevo (`BREVO_API_KEY`) ou outro serviço de envio (`SMTP_URL`), sem mudar código.
 
