@@ -1,0 +1,1 @@
+ALTER TABLE "partner_profiles" ADD COLUMN "translations" jsonb DEFAULT '{}'::jsonb NOT NULL;

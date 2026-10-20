@@ -1,0 +1,33 @@
+{
+  "name": "rolejunto-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "build:preview": "tsc -b && VITE_BASE=./ VITE_ROUTER=hash vite build --outDir dist-preview",
+    "build:app": "tsc -b && VITE_BASE=./ VITE_ROUTER=hash vite build && npx cap sync",
+    "android": "npm run build:app && npx cap open android",
+    "ios": "npm run build:app && npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.6.9",
+    "@capacitor/core": "^7.6.9",
+    "@capacitor/ios": "^7.6.9",
+    "@capacitor/splash-screen": "^7.0.5",
+    "@capacitor/status-bar": "^7.0.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.6.9",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}

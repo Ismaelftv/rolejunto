@@ -1,0 +1,47 @@
+# RolêJunto completo: banco + API + site (com HTTPS automático).
+# Uso: cp .env.example .env  (preencha)  →  docker compose up -d --build
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-rolejunto}
+      POSTGRES_USER: ${DB_USER:-rolejunto}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-rolejunto}"]
+      interval: 10s
+      retries: 5
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${DB_USER:-rolejunto}:${DB_PASSWORD}@db:5432/${DB_NAME:-rolejunto}
+      UPLOAD_DIR: /app/data/uploads
+      APP_URL: https://${DOMAIN}
+      PUBLIC_URL: https://${DOMAIN}
+    volumes:
+      - uploads:/app/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Site + app web, servidos pelo Caddy, que também encaminha /api e /uploads para a API
+  web:
+    build: ./web
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:?defina DOMAIN no .env}
+    volumes:
+      - caddy_data:/data
+    depends_on: [api]
+
+volumes:
+  pgdata:
+  uploads:
+  caddy_data:

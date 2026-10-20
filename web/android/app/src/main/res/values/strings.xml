@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RolêJunto</string>
+    <string name="title_activity_main">RolêJunto</string>
+    <string name="package_name">br.com.rolejunto.app</string>
+    <string name="custom_url_scheme">br.com.rolejunto.app</string>
+</resources>
