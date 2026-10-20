@@ -8,6 +8,11 @@ import {
   ApiError, assetUrl, del, get, patch, post, put, setToken, setUnauthorizedHandler,
   type ApiBooking, type ApiNotification, type ApiUser,
 } from './api';
+import { onRealtime, startRealtime, stopRealtime, useRealtimeStatus } from './realtime';
+
+export const REF_KEY = 'rolejunto:ref';
+export const readRef = () => { try { return localStorage.getItem(REF_KEY) || undefined; } catch { return undefined; } };
+export const clearRef = () => { try { localStorage.removeItem(REF_KEY); } catch { /* ignore */ } };
 
 export type Role = 'cliente' | 'parceiro' | 'admin';
 export type Verification = 'pendente' | 'em_analise' | 'verificado' | 'recusado';
@@ -27,6 +32,7 @@ export interface User {
   interests?: ActivityKey[];
   lang?: string;
   notifications: { email: boolean; push: boolean; promos: boolean };
+  hasPassword: boolean;
 }
 
 export type BookingStatus = 'aguardando' | 'confirmada' | 'em_andamento' | 'concluida' | 'cancelada' | 'recusada';
@@ -48,6 +54,7 @@ export interface Booking {
   payment: 'pix' | 'cartao';
   subtotal: number;
   fee: number;
+  discount: number;
   total: number;
   status: BookingStatus;
   paymentStatus: string;
@@ -69,7 +76,7 @@ export function toUser(u: ApiUser): User {
   return {
     id: u.id, name: u.name, email: u.email, role: ROLE[u.role], verification: VER[u.verification], emailVerified: u.emailVerified, birthDate: u.birthDate,
     trustedContact: u.trustedContact ?? undefined, phone: u.phone ?? undefined, city: u.city ?? undefined,
-    avatar: assetUrl(u.avatarUrl), interests: u.interests as ActivityKey[], lang: u.lang, notifications: u.notifications,
+    avatar: assetUrl(u.avatarUrl), interests: u.interests as ActivityKey[], lang: u.lang, notifications: u.notifications, hasPassword: u.hasPassword !== false,
   };
 }
 
@@ -85,7 +92,7 @@ export function toBooking(b: ApiBooking, meId: string): Booking {
     other: { id: o.id, name: o.name.split(' ')[0], avatar: assetUrl(o.avatarUrl), role: o.role },
     activity: b.activity as ActivityKey, date: local.slice(0, 10), time: local.slice(11, 16), startsAt: new Date(b.startsAt).getTime(),
     hours: b.hours, place: b.place, privateVenue: b.privateVenue, note: b.note, payment: b.paymentMethod === 'card' ? 'cartao' : 'pix',
-    subtotal: b.subtotalCents / 100, fee: b.feeCents / 100, total: b.totalCents / 100, status: STATUS[b.status], paymentStatus: b.paymentStatus,
+    subtotal: b.subtotalCents / 100, fee: b.feeCents / 100, discount: (b.discountCents ?? 0) / 100, total: b.totalCents / 100, status: STATUS[b.status], paymentStatus: b.paymentStatus,
     createdAt: new Date(b.createdAt).getTime(), rating: b.myRating ?? undefined, checkInAt: b.checkInAt ? new Date(b.checkInAt).getTime() : undefined,
     paid: ['paid', 'released'].includes(b.paymentStatus),
   };
@@ -93,11 +100,11 @@ export function toBooking(b: ApiBooking, meId: string): Booking {
 
 /** Traduz o erro da API (pelo código) para o idioma atual. */
 export function errorText(d: Dict, e: unknown) {
-  if (e instanceof ApiError) return (d.live.errors as Record<string, string>)[e.code] ?? (e.status >= 500 ? d.live.errors.internal : e.message || d.live.errors.generic);
+  if (e instanceof ApiError) return ({ ...d.live.errors, ...d.g.errors } as Record<string, string>)[e.code] ?? (e.status >= 500 ? d.live.errors.internal : e.message || d.live.errors.generic);
   return d.live.errors.generic;
 }
 
-export interface SignupData { name: string; email: string; password: string; role: Role; birthDate: string; lang: string }
+export interface SignupData { name: string; email: string; password: string; role: Role; birthDate: string; lang: string; ref?: string }
 export type BookingAction = 'cancel' | 'check-in' | 'complete' | 'accept' | 'decline';
 
 interface StoreShape {
@@ -109,6 +116,9 @@ interface StoreShape {
   refreshUser: () => Promise<void>;
   updateUser: (patch: Record<string, unknown>) => Promise<void>;
   setUser: (u: ApiUser) => void;
+  /** Entra com um usuário já autenticado (ex.: login com Google/Apple). */
+  adoptSession: (u: ApiUser) => Promise<User>;
+  live: boolean; // canal em tempo real aberto
   favorites: string[];
   toggleFav: (id: string) => void;
   blocked: { id: string; name: string }[];
@@ -156,6 +166,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const fail = useCallback((e: unknown) => toast(errorText(dRef.current, e), 'warn'), [toast]);
 
   const clear = useCallback(() => {
+    stopRealtime();
     setUserState(null); setFavorites([]); setBlocked([]); setBookings([]); setBookingsLoaded(false); setNotifications([]);
   }, []);
 
@@ -183,6 +194,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const mapped = toUser(u);
     userRef.current = mapped;
     setUserState(mapped);
+    startRealtime();
     if (applyLang && ['pt', 'es', 'en', 'zh'].includes(u.lang)) setLang(u.lang as 'pt');
     await Promise.allSettled([
       refreshBookings(), refreshNotifs(), refreshBlocked(),
@@ -208,14 +220,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     void patch('/me', { lang }).catch(() => {});
   }, [lang, user?.id, user?.lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Atualização periódica (reservas e notificações) enquanto o app está aberto
+  // Tempo real: notificação nova aparece na hora e, se for de reserva, a lista de reservas é atualizada
+  const live = useRealtimeStatus();
   useEffect(() => {
     if (!user) return;
-    const tick = () => { if (document.visibilityState === 'visible') { void refreshNotifs().catch(() => {}); void refreshBookings().catch(() => {}); } };
-    const t = window.setInterval(tick, 15000);
+    return onRealtime('notification', (n: ApiNotification) => {
+      setNotifications((list) => (list.some((x) => x.id === n.id) ? list : [n, ...list]));
+      if (n.data && typeof (n.data as { bookingId?: unknown }).bookingId === 'string') void refreshBookings().catch(() => {});
+    });
+  }, [user?.id, refreshBookings]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Atualização periódica de segurança: a cada 15 s sem tempo real, a cada 60 s com ele
+  useEffect(() => {
+    if (!user) return;
+    const tick = () => {
+      if (document.visibilityState !== 'visible') return;
+      startRealtime(); // reabre o canal se tiver caído de vez
+      void refreshNotifs().catch(() => {}); void refreshBookings().catch(() => {});
+    };
+    const t = window.setInterval(tick, live ? 60000 : 15000);
     document.addEventListener('visibilitychange', tick);
     return () => { window.clearInterval(t); document.removeEventListener('visibilitychange', tick); };
-  }, [user?.id, refreshNotifs, refreshBookings]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id, live, refreshNotifs, refreshBookings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const upsertBooking = useCallback((b: ApiBooking) => {
     const nb = toBooking(b, userRef.current?.id ?? '');
@@ -237,8 +263,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     signup: async (s) => {
       const r = await post<{ user: ApiUser }>('/auth/signup', {
         name: s.name, email: s.email, password: s.password, birthDate: s.birthDate, role: s.role === 'parceiro' ? 'partner' : 'client',
-        lang: s.lang, acceptTerms: true, privacyConsent: true,
+        lang: s.lang, acceptTerms: true, privacyConsent: true, ref: s.ref ?? readRef(),
       });
+      clearRef();
       return afterLogin(r.user);
     },
     logout: async () => {
@@ -255,6 +282,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setUserState(toUser(r.user));
     },
     setUser,
+    adoptSession: (u) => afterLogin(u),
+    live,
     favorites,
     toggleFav: (id) => {
       if (!userRef.current) { toast(dRef.current.live.loginToSave, 'warn'); return; }
@@ -299,7 +328,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     toasts,
     toast,
     fail,
-  }), [ready, user, favorites, blocked, bookings, bookingsLoaded, notifications, toasts, toast, fail, afterLogin, clear, setUser,
+  }), [ready, user, favorites, blocked, bookings, bookingsLoaded, notifications, toasts, toast, fail, afterLogin, clear, setUser, live,
     refreshBlocked, refreshBookings, refreshNotifs, upsertBooking]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

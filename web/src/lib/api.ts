@@ -12,7 +12,8 @@ export class ApiError extends Error {
 const TOKEN_KEY = 'rolejunto:token';
 const isNative = () => !!(window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
 
-function getToken() {
+export const isNativeApp = isNative;
+export function getToken() {
   try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
 }
 export function setToken(t: string | null | undefined) {
@@ -75,11 +76,12 @@ export interface ApiUser {
   avatarUrl: string | null; lang: string; interests: string[]; verification: ApiVerification; emailVerified: boolean;
   trustedContact: { name: string; phone: string } | null;
   notifications: { email: boolean; push: boolean; promos: boolean };
-  notifSeenAt: string; createdAt: string;
+  notifSeenAt: string; createdAt: string; hasPassword?: boolean;
 }
 
 export interface ApiPartnerCard {
-  id: string; name: string; age: number; avatarUrl: string | null; bio: string;
+  id: string; name: string; age: number; avatarUrl: string | null; photoUrl?: string | null; bio: string;
+  area?: { lat: number; lng: number; radiusM: number } | null;
   translations: Record<string, { bio?: string; about?: string }>;
   activities: string[]; priceCents: number; minHours: number; languages: string[]; neighborhood: string; city: string;
   rating: number | null; reviewsCount: number; responseMinutes: number; distanceKm: number | null; online: boolean;
@@ -88,14 +90,14 @@ export interface ApiPartnerDetail extends ApiPartnerCard {
   about: string;
   photos: { id: string; url: string }[];
   reviews: { id: string; author: string; activity: string; rating: number; text: string; createdAt: string }[];
-  agenda: { date: string; offset: number; slots: string[] }[];
+  agenda: { date: string; offset: number; slots: string[]; off?: boolean }[];
 }
 
 export interface ApiPerson { id: string; name: string; avatarUrl: string | null; role?: ApiRole }
 export interface ApiBooking {
   id: string; clientId: string; partnerId: string; activity: string; startsAt: string; hours: number; place: string;
   privateVenue: boolean; note: string; priceCents: number; subtotalCents: number; feeCents: number; totalCents: number;
-  status: ApiBookingStatus; paymentStatus: ApiPaymentStatus; paymentMethod: 'pix' | 'card';
+  status: ApiBookingStatus; paymentStatus: ApiPaymentStatus; discountCents?: number; paymentMethod: 'pix' | 'card';
   checkInAt: string | null; completedAt: string | null; cancelledAt: string | null; createdAt: string;
   other: ApiPerson | null; myRating?: number | null;
 }

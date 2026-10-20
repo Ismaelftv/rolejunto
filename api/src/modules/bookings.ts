@@ -8,7 +8,8 @@ import { E } from '../lib/errors.js';
 import { moderateText } from '../lib/moderation.js';
 import { cancelBooking, hadCompletedPublicMeeting, hasConflict, participants, recomputeRating, systemMessage } from './bookingService.js';
 import * as dto from './dto.js';
-import { ACTIVITIES, blockedIds, PRIVATE_ACTIVITIES } from './partners.js';
+import { evaluateCoupon, redeemCoupon, releaseCoupon, rewardReferral } from './growth.js';
+import { ACTIVITIES, blockedIds, offDates, PRIVATE_ACTIVITIES } from './partners.js';
 
 type Booking = typeof bookings.$inferSelect;
 
@@ -39,6 +40,7 @@ export default function bookingRoutes(app: FastifyInstance, ctx: Ctx) {
       paymentMethod: z.enum(['pix', 'card']).default('pix'),
       shareWithTrustedContact: z.boolean().default(false),
       acceptRules: z.literal(true),
+      couponCode: z.string().trim().max(40).optional(),
     }), req.body);
     if (b.partnerId === u.id) throw E.badRequest('self_booking');
     const [row] = await ctx.db.select({ u: users, p: partnerProfiles }).from(users).innerJoin(partnerProfiles, eq(partnerProfiles.userId, users.id))
@@ -54,6 +56,7 @@ export default function bookingRoutes(app: FastifyInstance, ctx: Ctx) {
     const hhmm = local.toISOString().slice(11, 16);
     const slot = await ctx.db.select().from(availability).where(and(eq(availability.partnerId, b.partnerId), eq(availability.weekday, local.getUTCDay()), eq(availability.start, hhmm)));
     if (!slot.length) throw E.unprocessable('slot_unavailable', 'Horário indisponível.');
+    if ((await offDates(ctx.db, b.partnerId))(local.toISOString().slice(0, 10))) throw E.unprocessable('slot_unavailable', 'O parceiro está de folga nessa data.');
     if (await hasConflict(ctx.db, b.partnerId, start, b.hours)) throw E.conflict('slot_taken', 'Esse horário acabou de ser reservado.');
 
     // Regra de segurança: Casa e Sítio
@@ -71,10 +74,15 @@ export default function bookingRoutes(app: FastifyInstance, ctx: Ctx) {
 
     const subtotal = p.priceCents * b.hours;
     const fee = Math.round(subtotal * config.SERVICE_FEE_RATE);
+    // Cupom: o desconto sai da parte da plataforma; o parceiro recebe o valor cheio
+    const promo = b.couponCode ? await evaluateCoupon(ctx.db, u.id, b.couponCode, subtotal + fee) : null;
+    const discount = promo?.discountCents ?? 0;
     const [created] = await ctx.db.insert(bookings).values({
       clientId: u.id, partnerId: b.partnerId, activity: b.activity, startsAt: start, hours: b.hours, place: b.place, privateVenue,
-      note: b.note, priceCents: p.priceCents, subtotalCents: subtotal, feeCents: fee, totalCents: subtotal + fee, paymentMethod: b.paymentMethod,
+      note: b.note, priceCents: p.priceCents, subtotalCents: subtotal, feeCents: fee, totalCents: subtotal + fee - discount, paymentMethod: b.paymentMethod,
+      couponId: promo?.coupon.id ?? null, discountCents: discount,
     }).returning();
+    if (promo) await redeemCoupon(ctx.db, promo.coupon.id, u.id, created.id, discount);
     await systemMessage(ctx.db, created, 'booking_requested', { bookingId: created.id, startsAt: created.startsAt, hours: created.hours });
     await notify(ctx.db, b.partnerId, 'booking_request', { bookingId: created.id, clientName: u.name.split(' ')[0] }, `/painel`);
     await audit(ctx.db, req, 'booking.create', 'booking', created.id);
@@ -121,6 +129,7 @@ export default function bookingRoutes(app: FastifyInstance, ctx: Ctx) {
     if (u.id !== b.partnerId) throw E.forbidden();
     if (b.status !== 'requested') throw E.conflict('invalid_status');
     const [x] = await ctx.db.update(bookings).set({ status: 'declined', updatedAt: new Date() }).where(eq(bookings.id, b.id)).returning();
+    if (b.couponId) await releaseCoupon(ctx.db, b.id);
     await notify(ctx.db, b.clientId, 'booking_declined', { bookingId: b.id, partnerName: u.name.split(' ')[0] }, `/reservas/${b.id}`);
     return { booking: await withOther(x, u.id) };
   });
@@ -174,6 +183,7 @@ export default function bookingRoutes(app: FastifyInstance, ctx: Ctx) {
     const [x] = await ctx.db.update(bookings).set({ status: 'completed', completedAt: new Date(), paymentStatus: 'released', updatedAt: new Date() }).where(eq(bookings.id, b.id)).returning();
     await notify(ctx.db, b.clientId, 'review_request', { bookingId: b.id }, `/reservas/${b.id}`);
     await notify(ctx.db, b.partnerId, 'review_request', { bookingId: b.id }, `/painel`);
+    await rewardReferral(ctx.db, b.clientId).catch((e) => req.log.error(e, 'referral reward'));
     return { booking: await withOther(x, u.id) };
   });
 

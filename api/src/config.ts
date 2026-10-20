@@ -48,6 +48,13 @@ const Env = z.object({
   UPLOAD_DIR: z.string().default('./data/uploads'),
   PUBLIC_URL: z.string().default('http://localhost:3333'),
   ADMIN_EMAIL: z.string().optional(), // e-mail que vira admin no seed
+  // Parceiro só aparece na busca com pelo menos 1 foto aprovada pela moderação
+  REQUIRE_PARTNER_PHOTO: z.enum(['true', 'false']).default('true').transform((v) => v === 'true'),
+  // Indique um amigo: valor do cupom que cada um ganha quando o indicado conclui o 1º encontro (centavos)
+  REFERRAL_REWARD_CENTS: z.coerce.number().int().min(0).default(2000),
+  // Login com Google e Apple (deixe vazio para esconder os botões)
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  APPLE_CLIENT_ID: z.string().optional(), // "Services ID" do Sign in with Apple (ex.: br.com.rolejunto.web)
 });
 
 // Variáveis vazias no .env contam como "não definidas"

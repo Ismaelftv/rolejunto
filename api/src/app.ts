@@ -18,6 +18,7 @@ import { installNoticeEmails } from './lib/noticeEmails.js';
 import { paymentProvider, type PaymentProvider } from './providers/payments.js';
 import { createMailer, createSms } from './providers/messaging.js';
 import { localStorage } from './providers/storage.js';
+import { jwtOAuthVerifier, type OAuthVerifier } from './providers/oauth.js';
 import authRoutes, { SESSION_COOKIE } from './modules/auth.js';
 import meRoutes from './modules/me.js';
 import partnerRoutes from './modules/partners.js';
@@ -30,8 +31,10 @@ import verificationRoutes from './modules/verification.js';
 import adminRoutes from './modules/admin.js';
 import adminFinanceRoutes from './modules/adminFinance.js';
 import supportRoutes from './modules/support.js';
+import realtimeRoutes from './modules/realtime.js';
+import growthRoutes from './modules/growth.js';
 
-export async function buildApp(database: Database, opts: { payments?: PaymentProvider; logger?: boolean } = {}): Promise<FastifyInstance> {
+export async function buildApp(database: Database, opts: { payments?: PaymentProvider; logger?: boolean; oauth?: OAuthVerifier } = {}): Promise<FastifyInstance> {
   const app = Fastify({
     logger: opts.logger ?? (config.NODE_ENV !== 'test'),
     trustProxy: true,
@@ -44,6 +47,7 @@ export async function buildApp(database: Database, opts: { payments?: PaymentPro
     mailer: createMailer(app.log),
     sms: createSms(app.log),
     storage: localStorage,
+    oauth: opts.oauth ?? jwtOAuthVerifier,
   };
 
   installNoticeEmails(ctx); // avisos das notificações também por e-mail
@@ -63,7 +67,9 @@ export async function buildApp(database: Database, opts: { payments?: PaymentPro
   // Sessão: cookie httpOnly (site) ou "Authorization: Bearer" (app nativo)
   app.addHook('preHandler', async (req) => {
     const header = req.headers.authorization;
-    const raw = header?.startsWith('Bearer ') ? header.slice(7) : req.cookies[SESSION_COOKIE];
+    // EventSource (tempo real) não envia cabeçalhos: no app nativo, o token vem em ?token=
+    const qToken = req.url.startsWith('/api/events') ? (req.query as { token?: string } | undefined)?.token : undefined;
+    const raw = header?.startsWith('Bearer ') ? header.slice(7) : qToken || req.cookies[SESSION_COOKIE];
     if (!raw) return;
     const [row] = await ctx.db.select({ s: sessions, u: users }).from(sessions)
       .innerJoin(users, eq(users.id, sessions.userId))
@@ -101,6 +107,8 @@ export async function buildApp(database: Database, opts: { payments?: PaymentPro
     adminRoutes(api, ctx);
     adminFinanceRoutes(api, ctx);
     supportRoutes(api, ctx);
+    realtimeRoutes(api, ctx);
+    growthRoutes(api, ctx);
   }, { prefix: '/api' });
 
   return app;

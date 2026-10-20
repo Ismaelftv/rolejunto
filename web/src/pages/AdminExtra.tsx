@@ -79,7 +79,7 @@ export function AdminBookings() {
   return (
     <div className="stack gap-12">
       <div className="row wrap gap-8">
-        <div className="search-inline" style={{ background: '#fff', border: '1px solid var(--line)', flex: '1 1 260px', maxWidth: 420 }}>
+        <div className="search-inline" style={{ background: 'var(--white)', border: '1px solid var(--line)', flex: '1 1 260px', maxWidth: 420 }}>
           <Icon name="search" size={18} stroke="var(--muted)" />
           <label htmlFor="bq" className="sr-only">{b.search}</label>
           <input id="bq" placeholder={b.search} value={q} onChange={(e) => setQ(e.target.value)} />
@@ -127,7 +127,7 @@ export function AdminBookings() {
 
 // ---------- Financeiro ----------
 interface Finance {
-  grossCents: number; feesCents: number; refundedCents: number; heldCents: number; owedCents: number;
+  grossCents: number; feesCents: number; refundedCents: number; heldCents: number; owedCents: number; discountsCents?: number;
   pendingPayouts: { partnerId: string; name: string; email: string; phone: string | null; bookingsCount: number; amountCents: number }[];
   recentPayouts: { id: string; name: string; amountCents: number; bookingsCount: number; note: string; createdAt: string }[];
 }
@@ -168,6 +168,7 @@ export function AdminFinance() {
         <div className="stat"><span className="small muted bold">{x.owed}</span><span className="v" style={{ color: fin.owedCents ? 'var(--accent)' : undefined }}>{cents(fin.owedCents)}</span></div>
       </div>
       {fin.refundedCents > 0 && <span className="small muted">{x.refunded}: <strong>{cents(fin.refundedCents)}</strong></span>}
+      {(fin.discountsCents ?? 0) > 0 && <span className="small muted">{d.g.adm.finDiscounts}: <strong>{cents(fin.discountsCents ?? 0)}</strong></span>}
 
       <div className="stack gap-12">
         <h2 className="h-sm">{x.pendingTitle}</h2>

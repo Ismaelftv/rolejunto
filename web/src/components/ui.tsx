@@ -60,13 +60,13 @@ export function useActLabel() {
 export function ActivityTag({ k }: { k: ActivityKey }) {
   const a = activityByKey(k);
   const label = useActLabel();
-  return <span className="badge" style={{ background: a.soft, color: a.color }}>{label(k)}</span>;
+  return <span className="badge" style={{ background: a.soft, color: a.ink }}>{label(k)}</span>;
 }
 
 export function ActivityIcon({ k, size = 46, icon = 22, on = true }: { k: ActivityKey; size?: number; icon?: number; on?: boolean }) {
   const a = activityByKey(k);
   return (
-    <span className="icon-box" style={{ width: size, height: size, borderRadius: size * 0.3, background: on ? a.color : a.soft, color: on ? '#fff' : a.color }}>
+    <span className="icon-box" style={{ width: size, height: size, borderRadius: size * 0.3, background: on ? a.color : a.soft, color: on ? '#fff' : a.ink }}>
       <Icon d={a.icon} size={icon} width={2.1} />
     </span>
   );

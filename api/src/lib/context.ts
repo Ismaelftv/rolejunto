@@ -5,7 +5,9 @@ import { auditLogs, notifications, users } from '../db/schema.js';
 import type { PaymentProvider } from '../providers/payments.js';
 import type { Mailer, Sms } from '../providers/messaging.js';
 import type { Storage } from '../providers/storage.js';
+import type { OAuthVerifier } from '../providers/oauth.js';
 import { E } from './errors.js';
+import { publish } from './events.js';
 
 export type UserRow = typeof users.$inferSelect;
 
@@ -15,6 +17,7 @@ export interface Ctx {
   mailer: Mailer;
   sms: Sms;
   storage: Storage;
+  oauth: OAuthVerifier;
 }
 
 declare module 'fastify' {
@@ -53,7 +56,8 @@ export function setNotifyHook(fn: NotifyHook | null) { notifyHook = fn; }
 export async function flushNotices() { await Promise.allSettled([...pending]); }
 
 export async function notify(db: DB, userId: string, type: string, data: Record<string, unknown> = {}, link?: string) {
-  await db.insert(notifications).values({ userId, type, data, link });
+  const [n] = await db.insert(notifications).values({ userId, type, data, link }).returning();
+  publish(userId, 'notification', { id: n.id, type, data, link: link ?? null, createdAt: n.createdAt, unread: true });
   if (notifyHook) {
     // em segundo plano: o envio do e-mail nunca atrasa nem derruba a ação do usuário
     const p = notifyHook(db, userId, type, data, link).catch(() => {}).finally(() => pending.delete(p));

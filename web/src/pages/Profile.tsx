@@ -26,7 +26,7 @@ function BookingPanel({ p, sel, setSel, locked }: { p: Partner; sel: Sel; setSel
             const a = activityByKey(t);
             const on = sel.activity === t;
             return (
-              <button key={t} className="chip" style={{ minHeight: 40, fontSize: 14, ...(on ? { background: a.color, color: '#fff' } : { background: a.soft, color: a.color }) }}
+              <button key={t} className="chip" style={{ minHeight: 40, fontSize: 14, ...(on ? { background: a.color, color: '#fff' } : { background: a.soft, color: a.ink }) }}
                 aria-pressed={on} onClick={() => setSel({ ...sel, activity: t })}>
                 <Icon d={a.icon} size={16} /> {d.act[t].label}
                 {a.privateVenue && <Icon name="lock" size={13} width={2.6} />}
@@ -51,7 +51,7 @@ function BookingPanel({ p, sel, setSel, locked }: { p: Partner; sel: Sel; setSel
               <button key={i} className={`day-pill ${sel.day === i ? 'on' : ''} ${!free ? 'off' : ''}`} onClick={() => setSel({ ...sel, day: i, slot: '' })}
                 aria-label={f(d.profile.dayAria, { label, d: dd.day }) + (free ? '' : d.profile.noSlotsAria)}>
                 <span className="xs bold" style={{ maxWidth: 56, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
-                <span className="n">{dd.day}</span>
+                <span className={`n ${dd.off ? 'agenda-off' : ''}`}>{dd.day}</span>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: free ? 'var(--green)' : 'transparent' }} />
               </button>
             );
@@ -61,7 +61,7 @@ function BookingPanel({ p, sel, setSel, locked }: { p: Partner; sel: Sel; setSel
       <div className="stack gap-8">
         <span className="label">{d.profile.step3}</span>
         {!day && <span className="muted small">{d.profile.pickGreen}</span>}
-        {day && day.slots.length === 0 && <div className="tile small muted">{f(d.profile.noSlots, { name: p.name })}</div>}
+        {day && day.slots.length === 0 && <div className="tile small muted">{day.off ? `${d.g.schedule.dayOff} · ` : ''}{f(d.profile.noSlots, { name: p.name })}</div>}
         {day && day.slots.length > 0 && (
           <div className="grid-3">
             {day.slots.map((s) => (
@@ -152,7 +152,7 @@ export default function Profile() {
             <span className="lbl">{f(d.profile.photoOf, { i: photo + 1, n: p.photos.length })}</span>
             <div className="tl"><button className="icon-btn" style={{ border: 0 }} onClick={() => nav(-1)} aria-label={d.common.back}><Icon name="back" /></button></div>
             <div className="tr">
-              <button className="icon-btn" style={{ border: 0 }} aria-pressed={fav} aria-label={fav ? d.profile.unfav : d.profile.fav} onClick={() => toggleFav(p.id)}>
+              <button className="icon-btn" style={{ border: 0 }} aria-pressed={fav} aria-label={fav ? d.profile.unfav : d.profile.fav} onClick={() => { toggleFav(p.id); if (!fav && user) toast(f(d.g.fav.alert, { name: p.name })); }}>
                 <Icon name="heart" fill={fav ? 'var(--accent)' : 'none'} stroke={fav ? 'var(--accent)' : 'var(--ink)'} />
               </button>
               <button className="icon-btn" style={{ border: 0 }} aria-label={d.profile.report} onClick={() => setReport(true)}><Icon name="flag" /></button>
@@ -267,7 +267,7 @@ export default function Profile() {
           <span className="xs muted bold">{summary}</span>
           <strong style={{ fontSize: 18 }}>{ready ? money(subtotal) : d.profile.pickDayTime}</strong>
         </div>
-        <button className="btn btn-sq" style={canBook ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--ink)', color: '#fff' }} onClick={proceed}>
+        <button className="btn btn-sq" style={canBook ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--ink)', color: 'var(--white)' }} onClick={proceed}>
           {canBook ? d.profile.requestCta : d.profile.pickTimeCta}
         </button>
       </div>

@@ -35,8 +35,8 @@ export default function BrandPage() {
             <span className="eyebrow" style={{ alignSelf: 'flex-start' }}>{d.brand.light}</span>
             <div className="row gap-16"><LogoMark size={80} /><Wordmark size={56} /></div>
           </div>
-          <div className="card stack gap-16" style={{ padding: 40, alignItems: 'center', justifyContent: 'center', minHeight: 260, background: 'var(--ink)', borderColor: 'var(--ink)' }}>
-            <span className="eyebrow" style={{ alignSelf: 'flex-start', color: '#C9CEDB' }}>{d.brand.dark}</span>
+          <div className="card stack gap-16" style={{ padding: 40, alignItems: 'center', justifyContent: 'center', minHeight: 260, background: 'var(--brand-ink)', borderColor: 'var(--brand-ink)' }}>
+            <span className="eyebrow" style={{ alignSelf: 'flex-start', color: 'var(--brand-muted)' }}>{d.brand.dark}</span>
             <div className="row gap-16"><LogoMark size={80} variant="coral" /><Wordmark size={56} dark /></div>
           </div>
         </div>

@@ -25,7 +25,7 @@ export default function adminFinanceRoutes(app: FastifyInstance, ctx: Ctx) {
     const [us, bs, ps] = await Promise.all([
       ctx.db.select({ role: users.role, createdAt: users.createdAt }).from(users).where(gte(users.createdAt, since)),
       ctx.db.select({ createdAt: bookings.createdAt, completedAt: bookings.completedAt, status: bookings.status }).from(bookings).where(gte(bookings.createdAt, new Date(since.getTime() - 30 * 86400_000))),
-      ctx.db.select({ paidAt: payments.paidAt, status: payments.status, feeCents: bookings.feeCents }).from(payments).innerJoin(bookings, eq(bookings.id, payments.bookingId)).where(gte(payments.paidAt, since)),
+      ctx.db.select({ paidAt: payments.paidAt, status: payments.status, feeCents: bookings.feeCents, discountCents: bookings.discountCents }).from(payments).innerJoin(bookings, eq(bookings.id, payments.bookingId)).where(gte(payments.paidAt, since)),
     ]);
     const series = Array.from({ length: days }, (_, i) => {
       const date = brDay(new Date(Date.now() - (days - 1 - i) * 86400_000));
@@ -37,7 +37,7 @@ export default function adminFinanceRoutes(app: FastifyInstance, ctx: Ctx) {
       const c = at.get(brDay(b.createdAt)); if (c) c.bookings++;
       if (b.completedAt) { const d = at.get(brDay(b.completedAt)); if (d) d.completed++; }
     }
-    for (const p of ps) { if (p.paidAt && p.status !== 'refunded') { const s = at.get(brDay(p.paidAt)); if (s) s.revenueCents += p.feeCents; } }
+    for (const p of ps) { if (p.paidAt && p.status !== 'refunded') { const s = at.get(brDay(p.paidAt)); if (s) s.revenueCents += p.feeCents - p.discountCents; } }
     return { series };
   });
 
@@ -62,7 +62,8 @@ export default function adminFinanceRoutes(app: FastifyInstance, ctx: Ctx) {
     return {
       period,
       grossCents: paid.reduce((s, x) => s + x.p.amountCents, 0),
-      feesCents: paid.filter((x) => x.p.status !== 'refunded').reduce((s, x) => s + x.b.feeCents, 0),
+      feesCents: paid.filter((x) => x.p.status !== 'refunded').reduce((s, x) => s + x.b.feeCents - x.b.discountCents, 0),
+      discountsCents: paid.filter((x) => x.p.status !== 'refunded').reduce((s, x) => s + x.b.discountCents, 0),
       refundedCents: paid.reduce((s, x) => s + x.p.refundedCents, 0),
       heldCents: open.filter((b) => b.paymentStatus === 'paid').reduce((s, b) => s + b.subtotalCents, 0),
       owedCents: owedRows.reduce((s, b) => s + b.subtotalCents, 0),

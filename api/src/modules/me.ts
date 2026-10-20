@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { bookings, favorites, messages, partnerProfiles, reports, reviews, sessions, users } from '../db/schema.js';
+import { bookings, favorites, messages, oauthAccounts, partnerProfiles, reports, reviews, sessions, users } from '../db/schema.js';
 import { audit, parse, requireUser, type Ctx } from '../lib/context.js';
 import { E } from '../lib/errors.js';
 import { hashPassword, verifyPassword } from '../lib/security.js';
@@ -44,8 +44,9 @@ export default function meRoutes(app: FastifyInstance, ctx: Ctx) {
 
   app.post('/me/password', { config: { rateLimit: { max: 10, timeWindow: '10 minutes' } } }, async (req) => {
     const u = requireUser(req);
-    const b = parse(z.object({ current: z.string().min(1), next: z.string().min(8).max(200) }), req.body);
-    if (!(await verifyPassword(b.current, u.passwordHash))) throw E.badRequest('wrong_password', 'Senha atual incorreta.');
+    const b = parse(z.object({ current: z.string().min(1).optional(), next: z.string().min(8).max(200) }), req.body);
+    // conta do Google/Apple pode criar a primeira senha sem informar a atual
+    if (dto.hasPassword(u) && !(b.current && (await verifyPassword(b.current, u.passwordHash)))) throw E.badRequest('wrong_password', 'Senha atual incorreta.');
     await ctx.db.update(users).set({ passwordHash: await hashPassword(b.next), updatedAt: new Date() }).where(eq(users.id, u.id));
     // encerra as outras sessões
     await ctx.db.delete(sessions).where(and(eq(sessions.userId, u.id), sql`${sessions.id} <> ${req.sessionId ?? null}`));
@@ -108,15 +109,18 @@ export default function meRoutes(app: FastifyInstance, ctx: Ctx) {
   // LGPD: exclusão. Dados financeiros ficam anonimizados pelo prazo legal; o resto é apagado.
   app.delete('/me', async (req, reply) => {
     const u = requireUser(req);
-    const b = parse(z.object({ password: z.string().min(1) }), req.body);
-    if (!(await verifyPassword(b.password, u.passwordHash))) throw E.badRequest('wrong_password', 'Senha incorreta.');
+    // Quem entrou só com Google/Apple não tem senha: confirma com "confirm: true"
+    const b = parse(z.object({ password: z.string().min(1).optional(), confirm: z.literal(true).optional() }), req.body);
+    if (dto.hasPassword(u) ? !(b.password && (await verifyPassword(b.password, u.passwordHash))) : !b.confirm) throw E.badRequest('wrong_password', 'Senha incorreta.');
     const open = await ctx.db.select().from(bookings).where(and(or(eq(bookings.clientId, u.id), eq(bookings.partnerId, u.id)), inArray(bookings.status, ['requested', 'accepted'])));
     for (const bk of open) await cancelBooking(ctx, bk, u.id, { forceFullRefund: bk.partnerId === u.id });
     if (u.avatarUrl) await ctx.storage.remove(u.avatarUrl);
     await ctx.db.update(users).set({
       email: `removido+${u.id}@rolejunto.invalid`, name: 'Usuário removido', phone: null, city: null, avatarUrl: null,
       trustedContactName: null, trustedContactPhone: null, interests: [], status: 'deleted', deletedAt: new Date(), passwordHash: 'x',
+      referralCode: null,
     }).where(eq(users.id, u.id));
+    await ctx.db.delete(oauthAccounts).where(eq(oauthAccounts.userId, u.id));
     await ctx.db.update(partnerProfiles).set({ visible: false, bio: '', about: '', approxLat: null, approxLng: null }).where(eq(partnerProfiles.userId, u.id));
     await ctx.db.delete(favorites).where(eq(favorites.userId, u.id));
     await ctx.db.delete(sessions).where(eq(sessions.userId, u.id));

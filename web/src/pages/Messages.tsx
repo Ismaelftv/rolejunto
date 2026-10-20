@@ -7,6 +7,7 @@ import { ACTIVITIES } from '../data/activities';
 import { ApiError, assetUrl, get, post, type ApiConversation, type ApiMessage } from '../lib/api';
 import { isMessageAllowed } from '../lib/moderation';
 import { usePartner } from '../lib/partners';
+import { useRealtime } from '../lib/realtime';
 import { brDate, useStore } from '../lib/store';
 import { useI18n } from '../i18n';
 
@@ -28,7 +29,10 @@ export default function Messages() {
   const { id } = useParams();
   const [params] = useSearchParams();
   const nav = useNavigate();
-  const { user, fail } = useStore();
+  const { user, fail, live } = useStore();
+  const [typing, setTyping] = useState(false);
+  const typingTimer = useRef<number>();
+  const lastTypingSent = useRef(0);
   const [convs, setConvs] = useState<ApiConversation[] | null>(null);
   const [msgs, setMsgs] = useState<ApiMessage[]>([]);
   const [text, setText] = useState('');
@@ -43,12 +47,12 @@ export default function Messages() {
     return r.items;
   }, []);
 
-  // Lista de conversas (atualiza a cada 10 s)
+  // Lista de conversas (com tempo real, a atualização periódica é só uma garantia)
   useEffect(() => {
     void loadConvs().catch(() => setConvs([]));
-    const t = window.setInterval(() => { if (document.visibilityState === 'visible') void loadConvs().catch(() => {}); }, 10000);
+    const t = window.setInterval(() => { if (document.visibilityState === 'visible') void loadConvs().catch(() => {}); }, live ? 60000 : 10000);
     return () => window.clearInterval(t);
-  }, [loadConvs]);
+  }, [loadConvs, live]);
 
   // /mensagens?com=<pessoa>: abre (ou cria) a conversa com essa pessoa
   const withUser = params.get('com');
@@ -72,14 +76,37 @@ export default function Messages() {
     setMsgs([]); setWarn(false); setText('');
     if (!id) return;
     void loadMsgs().catch(() => {});
-    const t = window.setInterval(() => { if (document.visibilityState === 'visible') void loadMsgs().catch(() => {}); }, 4000);
+    const t = window.setInterval(() => { if (document.visibilityState === 'visible') void loadMsgs().catch(() => {}); }, live ? 30000 : 4000);
     return () => window.clearInterval(t);
-  }, [id, loadMsgs]);
+  }, [id, loadMsgs, live]);
+
+  // Mensagem nova chega na hora pelo canal em tempo real
+  useRealtime('message', (e: { conversationId: string; message: ApiMessage }) => {
+    if (e.conversationId === id) {
+      setMsgs((list) => (list.some((m) => m.id === e.message.id) ? list : [...list, e.message]));
+      if (e.message.from === 'them') { setTyping(false); void loadMsgs().catch(() => {}); } // marca como lida
+    }
+    void loadConvs().catch(() => {});
+  });
+  useRealtime('typing', (e: { conversationId: string }) => {
+    if (e.conversationId !== id) return;
+    setTyping(true);
+    window.clearTimeout(typingTimer.current);
+    typingTimer.current = window.setTimeout(() => setTyping(false), 5000);
+  });
+  useEffect(() => { setTyping(false); }, [id]);
+
+  const onType = (v: string) => {
+    setText(v);
+    if (!id || !v.trim() || Date.now() - lastTypingSent.current < 3000) return;
+    lastTypingSent.current = Date.now();
+    void post(`/conversations/${id}/typing`).catch(() => {});
+  };
 
   useEffect(() => {
     const box = endRef.current?.parentElement;
     if (box) box.scrollTop = box.scrollHeight;
-  }, [msgs.length, id]);
+  }, [msgs.length, id, typing]);
 
   const open = id ? convs?.find((c) => c.id === id) : undefined;
   const other = open?.other ?? null;
@@ -103,7 +130,7 @@ export default function Messages() {
     setSending(true);
     try {
       const r = await post<{ message: ApiMessage }>(`/conversations/${id}/messages`, { body: t });
-      setMsgs((list) => [...list, r.message]);
+      setMsgs((list) => (list.some((m) => m.id === r.message.id) ? list : [...list, r.message]));
       setText(''); setWarn(false);
       void loadConvs().catch(() => {});
     } catch (e) {
@@ -143,7 +170,7 @@ export default function Messages() {
                   <Link to={isPartner ? `/parceiro/${other.id}` : '#'} onClick={(e) => { if (!isPartner) e.preventDefault(); }} className="row gap-12" style={{ textDecoration: 'none' }}>
                     <Avatar id={other.id} name={other.name} url={other.avatarUrl} size={42} />
                     <span className="stack"><strong>{other.name.split(' ')[0]}</strong>
-                      <span className="xs muted">{partner ? (partner.online ? d.messages.onlineNow : f(d.profile.respondsIn, { t: partner.responseTime })) : isPartner ? '' : d.live.clientBadge}</span>
+                      <span className="xs muted">{typing ? <span className="typing-label">{d.g.chat.typing}</span> : partner ? (partner.online ? d.messages.onlineNow : f(d.profile.respondsIn, { t: partner.responseTime })) : isPartner ? '' : d.live.clientBadge}</span>
                     </span>
                   </Link>
                 </div>
@@ -152,12 +179,13 @@ export default function Messages() {
               <div className="chat-msgs">
                 <div className="bubble system">{d.messages.safety}</div>
                 {msgs.map((m) => <div key={m.id} className={`bubble ${m.from}`}>{render(m)}</div>)}
+                {typing && <div className="bubble them typing-dots" aria-label={d.g.chat.typing}><span /><span /><span /></div>}
                 <div ref={endRef} />
               </div>
               {warn && <div className="notice notice-warn" style={{ margin: '0 12px', borderRadius: 12 }}><Icon name="alert" /> {d.messages.modWarn}</div>}
               <form className="chat-input" onSubmit={(e) => { e.preventDefault(); void send(); }}>
                 <label htmlFor="msg" className="sr-only">{d.messages.inputLabel}</label>
-                <input id="msg" className="input" placeholder={d.messages.inputPh} value={text} onChange={(e) => setText(e.target.value)} autoComplete="off" maxLength={2000} />
+                <input id="msg" className="input" placeholder={d.messages.inputPh} value={text} onChange={(e) => onType(e.target.value)} autoComplete="off" maxLength={2000} />
                 <button type="submit" className="btn btn-primary btn-sq" aria-label={d.common.send} disabled={!text.trim() || sending}><Icon name="send" /></button>
               </form>
             </>

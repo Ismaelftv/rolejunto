@@ -4,6 +4,8 @@ import { config } from '../config.js';
 import type { DB } from '../db/index.js';
 import { bookings, conversations, messages, partnerProfiles, payments, reviews, users } from '../db/schema.js';
 import { notify, type Ctx } from '../lib/context.js';
+import { publish } from '../lib/events.js';
+import { releaseCoupon } from './growth.js';
 
 type Booking = typeof bookings.$inferSelect;
 
@@ -19,7 +21,10 @@ export async function getOrCreateConversation(db: DB, clientId: string, partnerI
 /** Mensagem automática no chat (o app traduz pelo código). */
 export async function systemMessage(db: DB, b: Pick<Booking, 'clientId' | 'partnerId'>, code: string, data: Record<string, unknown> = {}) {
   const conv = await getOrCreateConversation(db, b.clientId, b.partnerId);
-  await db.insert(messages).values({ conversationId: conv.id, senderId: null, kind: 'system', body: code, data });
+  const [m] = await db.insert(messages).values({ conversationId: conv.id, senderId: null, kind: 'system', body: code, data }).returning();
+  const sys = { id: m.id, kind: 'system', from: 'system', body: code, data, createdAt: m.createdAt, readAt: null };
+  publish(b.clientId, 'message', { conversationId: conv.id, message: sys });
+  publish(b.partnerId, 'message', { conversationId: conv.id, message: sys });
   await db.update(conversations).set({ lastMessageAt: new Date() }).where(eq(conversations.id, conv.id));
 }
 
@@ -54,6 +59,8 @@ export async function cancelBooking(ctx: Ctx, b: Booking, actorId: string, opts:
   }
   const [updated] = await ctx.db.update(bookings).set({ status: 'cancelled', paymentStatus, cancelledBy: actorId, cancelledAt: new Date(), updatedAt: new Date() })
     .where(eq(bookings.id, b.id)).returning();
+  // Sem cobrança ou com reembolso integral, o cupom volta a valer
+  if (b.couponId && paymentStatus !== 'partially_refunded') await releaseCoupon(ctx.db, b.id);
   const other = actorId === b.clientId ? b.partnerId : b.clientId;
   await notify(ctx.db, other, 'booking_cancelled', { bookingId: b.id }, `/reservas/${b.id}`);
   await systemMessage(ctx.db, b, 'booking_cancelled', { bookingId: b.id });

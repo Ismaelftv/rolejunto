@@ -4,6 +4,7 @@ import { PageTitle, useTitle } from '../components/ui';
 import { useStore } from '../lib/store';
 import { assetUrl, get, post } from '../lib/api';
 import { useI18n } from '../i18n';
+import AdminCoupons from './AdminCoupons';
 import { AdminAudit, AdminBookings, AdminFinance, AdminReviews, AdminSystem, GrowthCharts, type HeldReview } from './AdminExtra';
 
 // Painel administrativo ligado à API. Cada ação fica registrada no log de auditoria (quem fez, quando e por quê).
@@ -14,7 +15,7 @@ interface Report { id: string; targetId: string; targetName: string; reporterNam
 interface Photo { id: string; url: string; partnerName: string; createdAt: string }
 interface AdminUser { id: string; name: string; email: string; role: string; verification: string; status: 'active' | 'suspended' | 'deleted' }
 
-const TABS = ['geral', 'financeiro', 'reservas', 'verif', 'denuncias', 'conteudo', 'avaliacoes', 'usuarios', 'historico', 'sistema'] as const;
+const TABS = ['geral', 'financeiro', 'reservas', 'verif', 'denuncias', 'conteudo', 'avaliacoes', 'usuarios', 'cupons', 'historico', 'sistema'] as const;
 
 // Motivos da API → posição em d.report.reasons
 const REASON_IDX: Record<string, number> = { sexual: 0, abuse: 1, threat: 1, fake: 2, minor: 3, off_platform_payment: 4, other: 5 };
@@ -69,6 +70,7 @@ export default function Admin() {
 
   const tabLabel = (k: typeof TABS[number]) => {
     if (k === 'sistema') return d.live.sysAdm.tab;
+    if (k === 'cupons') return d.g.adm.tab;
     if (k === 'reservas' || k === 'financeiro' || k === 'historico') return d.live.adm.tabs[k];
     if (k === 'avaliacoes') return f(d.live.adm.tabs.avaliacoes, { n: held.length });
     return f(d.admin.tabs[k], { n: k === 'verif' ? verifs.length : k === 'denuncias' ? reports.length : photos.length });
@@ -98,6 +100,7 @@ export default function Admin() {
       {tab === 'avaliacoes' && <AdminReviews items={held} reload={() => load().catch(fail)} />}
       {tab === 'historico' && <AdminAudit />}
       {tab === 'sistema' && <AdminSystem />}
+      {tab === 'cupons' && <AdminCoupons />}
 
       {tab === 'verif' && (
         <div className="stack gap-12">
@@ -171,7 +174,7 @@ export default function Admin() {
 
       {tab === 'usuarios' && (
         <div className="stack gap-12">
-          <div className="search-inline" style={{ background: '#fff', border: '1px solid var(--line)', maxWidth: 420 }}>
+          <div className="search-inline" style={{ background: 'var(--white)', border: '1px solid var(--line)', maxWidth: 420 }}>
             <Icon name="search" size={18} stroke="var(--muted)" />
             <label htmlFor="uq" className="sr-only">{d.admin.searchUser}</label>
             <input id="uq" placeholder={d.admin.searchUser} value={q} onChange={(e) => setQ(e.target.value)} />

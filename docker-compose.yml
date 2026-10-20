@@ -32,7 +32,11 @@ services:
 
   # Site + app web, servidos pelo Caddy, que também encaminha /api e /uploads para a API
   web:
-    build: ./web
+    build:
+      context: ./web
+      args:
+        VITE_MAP_TILES: ${MAP_TILES_URL:-}
+        VITE_MAP_ATTRIBUTION: ${MAP_ATTRIBUTION:-}
     restart: unless-stopped
     ports: ["80:80", "443:443"]
     environment:

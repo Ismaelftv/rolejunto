@@ -7,6 +7,7 @@ import { CONFIG } from '../lib/config';
 import { brDate, useStore, type BookingStatus } from '../lib/store';
 import { assetUrl, get, put, request } from '../lib/api';
 import { useI18n } from '../i18n';
+import { ScheduleEditor } from '../components/ScheduleEditor';
 
 // Painel do parceiro ligado à API: pedidos, perfil, agenda semanal, fotos e ganhos.
 interface ProfileRes {
@@ -15,13 +16,9 @@ interface ProfileRes {
   photos: { id: string; url: string; status: 'pending' | 'approved' | 'rejected' }[];
   checklist: Checklist;
 }
-interface Checklist { emailVerified: boolean; identityVerified: boolean; hasLocation: boolean; hasActivities: boolean; hasAvailability: boolean; visible: boolean; searchable: boolean }
+interface Checklist { emailVerified: boolean; identityVerified: boolean; hasPhoto: boolean; photoPending: boolean; hasLocation: boolean; hasActivities: boolean; hasAvailability: boolean; visible: boolean; searchable: boolean }
 interface Earnings { availableCents: number; pendingCents: number; monthCents: number; history: { bookingId: string; date: string; clientName: string; activity: string; hours: number; amountCents: number; paidOut: boolean }[] }
 
-// Colunas do quadro (Seg…Dom) → dia da semana da API (0 = domingo); faixas de horário e horário padrão de cada uma
-const WEEKDAYS = [1, 2, 3, 4, 5, 6, 0];
-const PERIOD_OF = (start: string) => { const h = Number(start.slice(0, 2)); return h < 12 ? 0 : h < 18 ? 1 : 2; };
-const PERIOD_DEFAULT = ['10:00', '15:00', '20:00'];
 const firstSentence = (t: string) => { const s = t.trim().split(/(?<=[.!?])\s/)[0] ?? ''; return (s.length > 140 ? `${s.slice(0, 137)}…` : s); };
 
 export default function PartnerDashboard() {
@@ -33,7 +30,6 @@ export default function PartnerDashboard() {
   const [profile, setProfile] = useState({ bio: '', price: 90, minHours: 2, languages: 'PT', tags: [] as ActivityKey[], active: false });
   const [rating, setRating] = useState<number | null>(null);
   const [slots, setSlots] = useState<{ weekday: number; start: string }[]>([]);
-  const [avail, setAvail] = useState<boolean[][]>(Array.from({ length: 7 }, () => [false, false, false]));
   const [photos, setPhotos] = useState<ProfileRes['photos']>([]);
   const [earn, setEarn] = useState<Earnings | null>(null);
   const [where, setWhere] = useState({ hood: '', city: '', hasLoc: false });
@@ -49,7 +45,6 @@ export default function PartnerDashboard() {
     }
     setCheck(r.checklist);
     setSlots(r.availability);
-    setAvail(WEEKDAYS.map((wd) => [0, 1, 2].map((pi) => r.availability.some((s) => s.weekday === wd && PERIOD_OF(s.start) === pi))));
     setPhotos(r.photos);
   }, []);
   useEffect(() => {
@@ -91,15 +86,6 @@ export default function PartnerDashboard() {
       await load();
     } catch (e) { fail(e); }
   };
-  const saveAvail = async () => {
-    const next: { weekday: number; start: string }[] = [];
-    WEEKDAYS.forEach((wd, di) => [0, 1, 2].forEach((pi) => {
-      if (!avail[di][pi]) return;
-      const existing = slots.filter((s) => s.weekday === wd && PERIOD_OF(s.start) === pi);
-      next.push(...(existing.length ? existing : [{ weekday: wd, start: PERIOD_DEFAULT[pi] }]));
-    }));
-    try { await put('/partner/availability', { slots: next }); setSlots(next); toast(d.partner.availSaved); void load().catch(() => {}); } catch (e) { fail(e); }
-  };
   const pickGps = () => {
     if (!navigator.geolocation) { toast(d.live.where.gpsFail, 'warn'); return; }
     navigator.geolocation.getCurrentPosition(
@@ -116,6 +102,7 @@ export default function PartnerDashboard() {
       const r = await request<{ photo: ProfileRes['photos'][number] }>('POST', '/partner/photos', form);
       setPhotos((p) => [...p, r.photo]);
       toast(d.partner.photoSent);
+      void load().catch(() => {});
     } catch (e) { fail(e); }
   };
 
@@ -143,6 +130,7 @@ export default function PartnerDashboard() {
                 {([
                   ['emailVerified', d.live.check.email, () => nav('/confirmar-email?next=%2Fpainel')],
                   ['identityVerified', user?.verification === 'em_analise' ? d.live.check.identityReview : d.live.check.identity, user?.verification === 'em_analise' ? null : () => nav('/verificacao?next=%2Fpainel')],
+                  ['hasPhoto', !check.hasPhoto && check.photoPending ? d.g.photo.checkPending : d.g.photo.check, !check.hasPhoto && check.photoPending ? null : () => setTab('fotos')],
                   ['hasLocation', d.live.check.location, () => setTab('perfil')],
                   ['hasActivities', d.live.check.activities, () => setTab('perfil')],
                   ['hasAvailability', d.live.check.availability, () => setTab('agenda')],
@@ -219,7 +207,7 @@ export default function PartnerDashboard() {
               {ACTIVITIES.map((a) => {
                 const on = profile.tags.includes(a.key);
                 return (
-                  <button type="button" key={a.key} className="chip" aria-pressed={on} style={on ? { background: a.color, color: '#fff' } : { background: a.soft, color: a.color }}
+                  <button type="button" key={a.key} className="chip" aria-pressed={on} style={on ? { background: a.color, color: '#fff' } : { background: a.soft, color: a.ink }}
                     onClick={() => setProfile({ ...profile, tags: on ? profile.tags.filter((t) => t !== a.key) : [...profile.tags, a.key] })}>
                     <Icon d={a.icon} size={16} /> {d.act[a.key].label}{a.privateVenue && <Icon name="lock" size={13} width={2.6} />}
                   </button>
@@ -251,30 +239,11 @@ export default function PartnerDashboard() {
         </form>
       )}
 
-      {tab === 'agenda' && (
-        <div className="card card-pad stack gap-16">
-          <div className="stack"><h2 className="h-sm">{d.partner.availTitle}</h2><span className="small muted">{d.partner.availText}</span></div>
-          <div style={{ overflowX: 'auto' }}>
-            <div className="avail-grid">
-              <span />
-              {d.partner.days.map((dd) => <span key={dd} className="small bold" style={{ textAlign: 'center' }}>{dd}</span>)}
-              {d.partner.periods.map((p, pi) => (
-                <div key={p} style={{ display: 'contents' }}>
-                  <span className="small bold" style={{ alignSelf: 'center' }}>{p}</span>
-                  {d.partner.days.map((dd, di) => (
-                    <button key={dd} className={`avail-cell ${avail[di][pi] ? 'on' : ''}`} aria-pressed={avail[di][pi]} aria-label={`${dd}, ${p}`}
-                      onClick={() => setAvail(avail.map((row, i) => (i === di ? row.map((v, j) => (j === pi ? !v : v)) : row)))} />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-          <button className="btn btn-primary btn-sq" style={{ alignSelf: 'flex-start' }} onClick={() => void saveAvail()}>{d.partner.saveAvail}</button>
-        </div>
-      )}
+      {tab === 'agenda' && <ScheduleEditor initial={slots} onSaved={() => void load().catch(() => {})} />}
 
       {tab === 'fotos' && (
         <div className="stack gap-16" style={{ maxWidth: 760 }}>
+          <div className="notice notice-warn"><Icon name="camera" /> {d.g.photo.rule}</div>
           <div className="notice notice-teal"><Icon name="eye" /> {d.partner.photosNote}</div>
           <div className="grid-auto" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
             {photos.map((ph, i) => (

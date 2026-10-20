@@ -21,12 +21,14 @@ const LOOK: Record<string, [IconName, string]> = {
   sos: ['sos', 'var(--danger)'],
   urgent_report: ['flag', 'var(--danger)'],
   payout_sent: ['wallet', 'var(--teal)'],
+  favorite_available: ['heart', 'var(--accent)'],
+  referral_reward: ['gift', 'var(--teal)'],
 };
 
 export function useNotifications(): Notif[] {
   const { d, f, weekday, money } = useI18n();
   const { user, notifications, bookings } = useStore();
-  const ntf = d.live.ntf as Record<string, string[]>;
+  const ntf = { ...d.live.ntf, ...d.g.ntf } as Record<string, string[]>;
 
   const list: Notif[] = notifications.map((n) => {
     const data = n.data ?? {};

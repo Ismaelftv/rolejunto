@@ -111,6 +111,7 @@ export default function BookingDetail() {
           <h2 className="h-sm" style={{ marginBottom: 4 }}>{d.bdetail.values}</h2>
           <div className="row between"><span className="muted">{f(d.checkout.line, { p: money(b.subtotal / b.hours), n: b.hours })}</span><span>{money(b.subtotal)}</span></div>
           <div className="row between"><span className="muted">{f(d.checkout.fee, { n: Math.round(CONFIG.serviceFeeRate * 100) })}</span><span>{money(b.fee)}</span></div>
+          {b.discount > 0 && <div className="row between" style={{ color: 'var(--teal)' }}><span className="bold">{d.g.coupon.label}</span><span className="bold">−{money(b.discount)}</span></div>}
           <div className="row between" style={{ borderTop: '1px solid var(--line)', paddingTop: 10, fontSize: 18 }}><strong>{d.checkout.total}</strong><strong>{money(b.total)}</strong></div>
           {b.paid && <span className="badge badge-teal" style={{ alignSelf: 'flex-start' }}><Icon name="lock" size={12} /> {d.pay.statusHeld}</span>}
           {b.paid && asClient && <Link to={`/reservas/${b.id}/pagar`} className="small bold">{d.pay.receipt} →</Link>}

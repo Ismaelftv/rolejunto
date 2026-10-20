@@ -58,7 +58,7 @@ export default function Home() {
                   return (
                     <button
                       key={a.key} role="radio" aria-checked={on} className="chip" onClick={() => setActKey(a.key)}
-                      style={on ? { background: a.color, color: '#fff', borderColor: a.color } : { background: a.soft, color: a.color }}
+                      style={on ? { background: a.color, color: '#fff', borderColor: a.color } : { background: a.soft, color: a.ink }}
                     >
                       <Icon d={a.icon} size={18} /> {d.act[a.key].label}
                     </button>
@@ -90,7 +90,7 @@ export default function Home() {
                 <div className="row gap-8 bold" style={{ color: cur.color }}>
                   <ActivityIcon k={cur.key} size={40} icon={22} /> {d.act[cur.key].label}
                 </div>
-                <span className="badge badge-teal" style={{ background: '#fff' }}><span className="dot" /> {f(d.home.available, { n: count(cur.key) })}</span>
+                <span className="badge badge-teal" style={{ background: 'var(--white)' }}><span className="dot" /> {f(d.home.available, { n: count(cur.key) })}</span>
               </div>
               {sample ? <Link to={`/parceiro/${sample.id}`} className="card" style={{ overflow: 'hidden', textDecoration: 'none', boxShadow: 'var(--shadow-lg)', borderRadius: 24 }}>
                 <div style={{ height: 220, background: cur.color, display: 'flex', alignItems: 'flex-end', padding: 18, position: 'relative', transition: 'background .3s' }}>
@@ -182,11 +182,11 @@ export default function Home() {
                     <strong className="display" style={{ fontSize: 22 }}>{d.home.mock.who}</strong>
                     <div className="row wrap gap-4">
                       <span className="badge" style={{ background: activityByKey('balada').color, color: '#fff', padding: '6px 12px' }}>{d.act.balada.label}</span>
-                      <span className="badge" style={{ background: '#fff', color: 'var(--ink)', padding: '6px 12px' }}>{d.common.today}</span>
-                      <span className="badge" style={{ background: '#fff', color: 'var(--ink)', padding: '6px 12px' }}>{d.home.mock.upTo}</span>
+                      <span className="badge" style={{ background: 'var(--white)', color: 'var(--ink)', padding: '6px 12px' }}>{d.common.today}</span>
+                      <span className="badge" style={{ background: 'var(--white)', color: 'var(--ink)', padding: '6px 12px' }}>{d.home.mock.upTo}</span>
                     </div>
                     {PARTNERS.filter((p) => p.tags.includes('balada')).slice(0, 3).map((p) => (
-                      <div key={p.id} className="row gap-12" style={{ background: '#fff', borderRadius: 16, padding: 10 }}>
+                      <div key={p.id} className="row gap-12" style={{ background: 'var(--white)', borderRadius: 16, padding: 10 }}>
                         <span className="avatar" style={{ background: p.photos[0] }}>{p.hasPhotos ? '' : p.initial}</span>
                         <span className="stack small"><strong>{p.name}, {p.age}</strong><span className="muted">{f(d.common.approxKm, { n: p.distanceKm })} · {d.act.balada.label}</span></span>
                       </div>
@@ -201,7 +201,7 @@ export default function Home() {
                         <span key={dd} className="small bold" style={{ textAlign: 'center', padding: '8px 0', borderRadius: 12, background: i === 2 ? 'var(--ink)' : '#fff', color: i === 2 ? '#fff' : 'var(--ink)' }}>{dd}</span>
                       ))}
                     </div>
-                    <div className="stack gap-4 small" style={{ background: '#fff', borderRadius: 16, padding: 14 }}>
+                    <div className="stack gap-4 small" style={{ background: 'var(--white)', borderRadius: 16, padding: 14 }}>
                       <span className="row between"><span>{d.home.mock.summary}</span><strong>{money(270)}</strong></span>
                       <span className="bold" style={{ color: 'var(--teal)' }}>{d.home.mock.retained}</span>
                     </div>
@@ -211,12 +211,12 @@ export default function Home() {
                 {step === 2 && (
                   <>
                     <strong className="display" style={{ fontSize: 22 }}>{d.home.mock.ongoing}</strong>
-                    <div className="stack gap-4 small" style={{ background: '#fff', borderRadius: 16, padding: 14 }}>
+                    <div className="stack gap-4 small" style={{ background: 'var(--white)', borderRadius: 16, padding: 14 }}>
                       <span className="row gap-8 bold" style={{ color: 'var(--teal)' }}><span className="dot" /> {d.home.mock.checkin}</span>
                       <span className="muted">{d.home.mock.shared}</span>
                     </div>
                     <span className="btn btn-danger btn-sq"><Icon name="sos" /> {d.home.mock.sos}</span>
-                    <div className="stack gap-4 small" style={{ background: '#fff', borderRadius: 16, padding: 14 }}>
+                    <div className="stack gap-4 small" style={{ background: 'var(--white)', borderRadius: 16, padding: 14 }}>
                       <strong>{d.home.mock.howWas}</strong><span className="stars" style={{ fontSize: 20 }}>★★★★★</span>
                     </div>
                   </>
@@ -232,12 +232,12 @@ export default function Home() {
           <div className="stack gap-16" style={{ flex: '1 1 360px', minWidth: 0 }}>
             <span className="eyebrow" style={{ color: 'var(--teal-light)' }}>{d.home.safetyEyebrow}</span>
             <h2 className="display h-lg">{d.home.safetyTitle}</h2>
-            <p style={{ color: '#C9CEDB' }}>{d.home.safetyText}</p>
+            <p style={{ color: 'var(--brand-muted)' }}>{d.home.safetyText}</p>
             <Link to="/seguranca" className="btn btn-light" style={{ alignSelf: 'flex-start' }}>{d.home.safetyCta}</Link>
           </div>
           <div className="grid-auto" style={{ flex: '2 1 560px', minWidth: 0, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 250px), 1fr))', gap: 16 }}>
             {d.home.safety.map(([t, dd]) => (
-              <div key={t} className="safety-card"><strong style={{ fontSize: 18 }}>{t}</strong><span style={{ color: '#C9CEDB', fontSize: 15 }}>{dd}</span></div>
+              <div key={t} className="safety-card"><strong style={{ fontSize: 18 }}>{t}</strong><span style={{ color: 'var(--brand-muted)', fontSize: 15 }}>{dd}</span></div>
             ))}
           </div>
         </div>
@@ -257,7 +257,7 @@ export default function Home() {
               <LogoMark size={72} variant="coral" />
               <div className="stack gap-8">
                 <h2 className="display h-md">{d.home.appTitle}</h2>
-                <p style={{ color: '#C9CEDB', maxWidth: 520 }}>{d.home.appText}</p>
+                <p style={{ color: 'var(--brand-muted)', maxWidth: 520 }}>{d.home.appText}</p>
               </div>
             </div>
             <button className="btn btn-primary btn-lg" onClick={doInstall}><Icon name="download" /> {d.home.appCta}</button>

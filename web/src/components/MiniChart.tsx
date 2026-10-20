@@ -123,7 +123,7 @@ export function MiniChart({ title, sub, labels, series, kind = 'line', format = 
         </svg>
 
         {hover !== null && (
-          <div role="status" style={{ position: 'absolute', top: 0, left: tipLeft, width: 168, pointerEvents: 'none', background: '#fff', border: '1px solid var(--line)', borderRadius: 12, boxShadow: '0 8px 24px rgba(18,24,38,.12)', padding: '8px 10px' }}>
+          <div role="status" style={{ position: 'absolute', top: 0, left: tipLeft, width: 168, pointerEvents: 'none', background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 12, boxShadow: '0 8px 24px rgba(18,24,38,.12)', padding: '8px 10px' }}>
             <div className="xs bold" style={{ marginBottom: 4 }}>{day(labels[hover])}</div>
             {series.map((s) => (
               <div key={s.key} className="row between gap-8 xs">

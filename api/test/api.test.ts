@@ -69,7 +69,13 @@ async function partnerId(c: Client, name: string) {
 before(async () => {
   const database = await openDatabase({ memory: true });
   await seed(database.db, { quiet: true });
-  app = await buildApp(database, { logger: false });
+  // Login social nos testes: token falso "fake|sub|email|verified|name" no lugar do JWT do Google/Apple
+  const oauth = { async verify(_p: string, t: string) {
+    const [tag, subject, email, verified, name] = t.split('|');
+    if (tag !== 'fake-oauth-token') throw new Error('bad');
+    return { subject, email: email || null, emailVerified: verified === '1', name: name || null };
+  } };
+  app = await buildApp(database, { logger: false, oauth });
   close = async () => { await app.close(); await database.close(); };
 });
 after(async () => { await close(); });
@@ -294,6 +300,8 @@ describe('chat, denúncias e admin', () => {
     await c.upload('/verification', ['front', 'back', 'selfie']);
     assert.equal((await c.put('/partner/profile', { ...base, visible: true })).body.error.code, 'email_unverified');
     await c.post('/auth/verify-email', { code: lastCode('gabi@x.com') });
+    assert.equal((await c.put('/partner/profile', { ...base, visible: true })).body.error.code, 'photo_required');
+    await c.upload('/partner/photos', ['photo']); // foto em análise já permite ativar
     const ok = await c.put('/partner/profile', { ...base, visible: true });
     assert.equal(ok.status, 200);
     assert.equal(ok.body.profile.approxLat, -23.55);
@@ -444,9 +452,16 @@ describe('parceiro novo aparece na busca', () => {
     const noLoc = await c.put('/partner/profile', { visible: true });
     assert.equal(noLoc.body.error.code, 'location_required');
     // informa bairro e cidade (sem GPS): usa o centro da cidade, arredondado
+    await c.upload('/partner/photos', ['photo']);
     const r = await c.put('/partner/profile', { neighborhood: 'Moema', city: 'São Paulo', visible: true });
     assert.equal(r.status, 200, JSON.stringify(r.body));
-    assert.equal(r.body.checklist.searchable, true);
+    assert.equal(r.body.checklist.hasPhoto, false); // foto ainda em análise
+    assert.equal(r.body.checklist.photoPending, true);
+    assert.ok(!(await new Client().get('/partners?radiusKm=10')).body.items.some((p: { name: string }) => p.name === 'Paula Nova'));
+    const adm = await login('admin@rolejunto.local');
+    const pend = (await adm.get('/admin/photos')).body.items.find((x: { partnerName: string }) => x.partnerName === 'Paula Nova');
+    await adm.post(`/admin/photos/${pend.id}/approve`);
+    assert.equal((await c.get('/partner/profile')).body.checklist.searchable, true);
     const found = await new Client().get('/partners?radiusKm=10');
     assert.ok(found.body.items.some((p: { name: string }) => p.name === 'Paula Nova'));
     // localização do aparelho tem prioridade
@@ -496,5 +511,179 @@ describe('avisos por e-mail', () => {
     assert.equal(mails('cliente@rolejunto.local').length, a0);
     await ana.patch('/me', { notifications: { email: true, push: true, promos: false } });
     assert.equal((await bia.get('/notifications')).status, 200);
+  });
+});
+
+describe('login com Google e Apple', () => {
+  const tok = (sub: string, email: string, verified = '1', name = '') => `fake-oauth-token|${sub}|${email}|${verified}|${name}`;
+
+  test('pessoa nova completa o perfil (18+); depois entra direto', async () => {
+    const c = new Client();
+    const r = await c.post('/auth/oauth', { provider: 'google', idToken: tok('g-1', 'lia.google@x.com', '1', 'Lia Souza') });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.needsProfile, true);
+    assert.equal(r.body.name, 'Lia Souza');
+    const young = await c.post('/auth/oauth/complete', { ticket: r.body.ticket, name: 'Lia Souza', birthDate: '2012-01-01', acceptTerms: true, privacyConsent: true });
+    assert.equal(young.body.error.code, 'underage');
+    const bad = await c.post('/auth/oauth/complete', { ticket: r.body.ticket.slice(0, -2) + 'xx', name: 'Lia Souza', birthDate: adult, acceptTerms: true, privacyConsent: true });
+    assert.equal(bad.body.error.code, 'oauth_ticket_invalid');
+    const ok = await c.post('/auth/oauth/complete', { ticket: r.body.ticket, name: 'Lia Souza', birthDate: adult, acceptTerms: true, privacyConsent: true });
+    assert.equal(ok.status, 201, JSON.stringify(ok.body));
+    assert.equal(ok.body.user.emailVerified, true);
+    assert.equal((await c.get('/auth/me')).body.user.email, 'lia.google@x.com');
+    const again = new Client();
+    const r2 = await again.post('/auth/oauth', { provider: 'google', idToken: tok('g-1', 'lia.google@x.com') });
+    assert.equal(r2.body.user.name, 'Lia Souza');
+    // a senha aleatória não permite login por senha
+    assert.equal((await new Client().post('/auth/login', { email: 'lia.google@x.com', password: 'qualquercoisa' })).status, 401);
+    assert.equal((await again.get('/auth/me')).body.user.hasPassword, false);
+    // conta só com Google: cria a primeira senha sem informar a atual e exclui a conta confirmando
+    assert.equal((await again.post('/me/password', { next: 'senhanova123' })).status, 200);
+    assert.equal((await new Client().post('/auth/login', { email: 'lia.google@x.com', password: 'senhanova123' })).status, 200);
+    assert.equal((await again.del('/me', { password: 'senhanova123' })).status, 200);
+    // depois de excluída, o mesmo Google começa um cadastro novo
+    assert.equal((await new Client().post('/auth/oauth', { provider: 'google', idToken: tok('g-1', 'lia.google@x.com') })).body.needsProfile, true);
+  });
+
+  test('e-mail confirmado de conta existente é ligado; e-mail não confirmado e token inválido são recusados', async () => {
+    const c = new Client();
+    const r = await c.post('/auth/oauth', { provider: 'apple', idToken: tok('a-ana', 'Cliente@rolejunto.local') });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.user.email, 'cliente@rolejunto.local');
+    const unv = await new Client().post('/auth/oauth', { provider: 'google', idToken: tok('g-2', 'x@x.com', '0') });
+    assert.equal(unv.body.error.code, 'oauth_email_required');
+    const inv = await new Client().post('/auth/oauth', { provider: 'google', idToken: 'not-a-real-token-at-all-xxxxxx' });
+    assert.equal(inv.status, 401);
+    const cfg = await new Client().get('/public-config');
+    assert.equal(cfg.status, 200);
+    assert.equal(typeof cfg.body.referralRewardCents, 'number');
+  });
+});
+
+describe('cupons e indique um amigo', () => {
+  test('cupom do admin dá desconto, vale 1 vez por pessoa e volta se o pedido for recusado', async () => {
+    const adm = await login('admin@rolejunto.local');
+    const created = await adm.post('/admin/coupons', { code: 'bemvindo10', kind: 'percent', value: 10, maxDiscountCents: 2000 });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    assert.equal(created.body.coupon.code, 'BEMVINDO10');
+    assert.equal((await adm.post('/admin/coupons', { code: 'BEMVINDO10', kind: 'fixed', value: 500 })).body.error.code, 'coupon_exists');
+    const ana = await login('cliente@rolejunto.local');
+    const marina = await login('marina@rolejunto.local');
+    const id = await partnerId(ana, 'Marina');
+    const chk = await ana.post('/coupons/check', { code: 'BemVindo10', partnerId: id, hours: 3 });
+    assert.equal(chk.status, 200, JSON.stringify(chk.body));
+    assert.equal(chk.body.discountCents, 2000); // 10% de 297,00 = 29,70 → limitado a 20,00
+    assert.equal((await ana.post('/coupons/check', { code: 'NAOEXISTE', partnerId: id, hours: 3 })).body.error.code, 'coupon_invalid');
+    const b = (await ana.post('/bookings', { partnerId: id, activity: 'bar', startsAt: await nextSlot(ana, id), hours: 3, place: 'Bar na Vila Madalena', acceptRules: true, couponCode: 'bemvindo10' })).body.booking;
+    assert.equal(b.discountCents, 2000);
+    assert.equal(b.totalCents, 27000 + 2700 - 2000);
+    assert.equal((await ana.post('/coupons/check', { code: 'BEMVINDO10', partnerId: id, hours: 3 })).body.error.code, 'coupon_already_used');
+    await marina.post(`/bookings/${b.id}/decline`);
+    assert.equal((await ana.post('/coupons/check', { code: 'BEMVINDO10', partnerId: id, hours: 3 })).status, 200);
+    // desativado não vale
+    await adm.post(`/admin/coupons/${created.body.coupon.id}/toggle`);
+    assert.equal((await ana.post('/coupons/check', { code: 'BEMVINDO10', partnerId: id, hours: 3 })).body.error.code, 'coupon_invalid');
+    const list = await adm.get('/admin/coupons');
+    assert.ok(list.body.items.some((c: { code: string; active: boolean }) => c.code === 'BEMVINDO10' && !c.active));
+  });
+
+  test('indicação: no primeiro encontro concluído do amigo, os dois ganham cupom', async () => {
+    const ana = await login('cliente@rolejunto.local');
+    const ref = await ana.get('/me/referral');
+    assert.equal(ref.status, 200);
+    assert.match(ref.body.link, new RegExp(`/cadastro\\?ref=${ref.body.code}$`));
+    assert.equal((await ana.get('/me/referral')).body.code, ref.body.code); // código fixo
+    const beforeAna = (await ana.get('/me/coupons')).body.items.length;
+
+    const bob = new Client();
+    await bob.post('/auth/signup', { name: 'Bob Indicado', email: 'bob.ind@x.com', password: 'senhasegura1', birthDate: adult, acceptTerms: true, privacyConsent: true, ref: ref.body.code.toLowerCase() });
+    await bob.post('/auth/verify-email', { code: lastCode('bob.ind@x.com') });
+    await bob.upload('/verification', ['front', 'back', 'selfie']);
+    assert.equal((await ana.get('/me/referral')).body.invited, 1);
+
+    const marina = await login('marina@rolejunto.local');
+    const id = await partnerId(bob, 'Marina');
+    const b = (await bob.post('/bookings', { partnerId: id, activity: 'bar', startsAt: await nextSlot(bob, id), hours: 3, place: 'Bar em Pinheiros', acceptRules: true })).body.booking;
+    assert.ok(b, 'reserva criada');
+    await marina.post(`/bookings/${b.id}/accept`);
+    const pay = await bob.post(`/bookings/${b.id}/payment`, { method: 'pix' });
+    await bob.post(`/payments/${pay.body.payment.id}/simulate`);
+    await bob.post(`/bookings/${b.id}/check-in`);
+    assert.equal((await marina.post(`/bookings/${b.id}/complete`)).body.booking.status, 'completed');
+
+    const bobCoupons = (await bob.get('/me/coupons')).body.items;
+    assert.equal(bobCoupons.length, 1);
+    assert.match(bobCoupons[0].code, /^AMIGO-/);
+    assert.equal((await ana.get('/me/coupons')).body.items.length, beforeAna + 1);
+    assert.ok((await ana.get('/notifications')).body.items.some((n: { type: string }) => n.type === 'referral_reward'));
+    // cupom pessoal: outra pessoa não consegue usar
+    assert.equal((await ana.post('/coupons/check', { code: bobCoupons[0].code, partnerId: id, hours: 3 })).body.error.code, 'coupon_invalid');
+    assert.equal((await bob.post('/coupons/check', { code: bobCoupons[0].code, partnerId: id, hours: 3 })).body.discountCents, bobCoupons[0].value);
+  });
+});
+
+describe('agenda do parceiro e favoritos', () => {
+  test('folga tira o dia da agenda e bloqueia reservas nessa data', async () => {
+    const ana = await login('cliente@rolejunto.local');
+    const helena = await login('helena@rolejunto.local');
+    const id = await partnerId(ana, 'Helena');
+    const day = (await ana.get(`/partners/${id}`)).body.partner.agenda.find((d: { slots: string[] }) => d.slots.length);
+    assert.ok(day, 'Helena tem horários');
+    const off = await helena.post('/partner/time-off', { startDate: day.date, endDate: day.date, note: 'Viagem' });
+    assert.equal(off.status, 201, JSON.stringify(off.body));
+    const agenda = (await ana.get(`/partners/${id}`)).body.partner.agenda;
+    const same = agenda.find((d: { date: string }) => d.date === day.date);
+    assert.equal(same.slots.length, 0);
+    assert.equal(same.off, true);
+    const r = await ana.post('/bookings', { partnerId: id, activity: (await ana.get(`/partners/${id}`)).body.partner.activities.find((a: string) => a !== 'casa' && a !== 'sitio'), startsAt: `${day.date}T${day.slots[0]}:00-03:00`, hours: 3, place: 'Restaurante em Moema', acceptRules: true });
+    assert.equal(r.body.error.code, 'slot_unavailable');
+    assert.equal((await helena.get('/partner/time-off')).body.items.length, 1);
+    assert.equal((await helena.put('/partner/availability', { slots: [{ weekday: 1, start: '20:15' }] })).status, 400); // só hora cheia ou meia hora
+    assert.equal((await helena.del(`/partner/time-off/${off.body.timeOff.id}`)).status, 200);
+  });
+
+  test('favorito avisa quando o parceiro volta a ficar disponível (1 vez por dia)', async () => {
+    const ana = await login('cliente@rolejunto.local');
+    const leo = await login('leo@rolejunto.local');
+    const id = await partnerId(ana, 'Léo');
+    await ana.put(`/me/favorites/${id}`);
+    const count = async () => (await ana.get('/notifications')).body.items.filter((n: { type: string; data: { partnerId?: string } }) => n.type === 'favorite_available' && n.data.partnerId === id).length;
+    const n0 = await count();
+    await leo.put('/partner/profile', { visible: false });
+    await leo.put('/partner/profile', { visible: true });
+    assert.equal(await count(), n0 + 1);
+    await leo.put('/partner/profile', { visible: false });
+    await leo.put('/partner/profile', { visible: true });
+    assert.equal(await count(), n0 + 1);
+  });
+});
+
+describe('tempo real', () => {
+  test('mensagens chegam na hora pelo canal de eventos', async () => {
+    const ana = await login('cliente@rolejunto.local');
+    const clara = await login('clara@rolejunto.local');
+    const address = await app.listen({ port: 0, host: '127.0.0.1' });
+    const ac = new AbortController();
+    const res = await fetch(`${address}/api/events`, { headers: { cookie: clara.cookie }, signal: ac.signal });
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type') ?? '', /text\/event-stream/);
+    const reader = res.body!.getReader();
+    let buf = '';
+    const until = async (re: RegExp) => {
+      const deadline = Date.now() + 5000;
+      while (!re.test(buf)) {
+        if (Date.now() > deadline) throw new Error(`timeout: ${buf}`);
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += new TextDecoder().decode(value);
+      }
+    };
+    await until(/event: ready/);
+    const conv = (await ana.post('/conversations', { partnerId: await partnerId(ana, 'Clara') })).body.conversation.id;
+    await ana.post(`/conversations/${conv}/messages`, { body: 'Mensagem em tempo real' });
+    await until(/event: message[\s\S]*Mensagem em tempo real/);
+    await ana.post(`/conversations/${conv}/typing`);
+    await until(/event: typing/);
+    ac.abort();
   });
 });

@@ -11,4 +11,4 @@ export const CONFIG = {
 };
 
 export const brl = (n: number) =>
-  n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', ...(Math.abs(n - Math.round(n)) < 0.005 ? { minimumFractionDigits: 0, maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 }) });

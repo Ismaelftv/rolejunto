@@ -46,7 +46,9 @@ export const users = pgTable('users', {
   createdAt: createdAt(),
   updatedAt: ts('updated_at').defaultNow().notNull(),
   deletedAt: ts('deleted_at'),
-}, (t) => [uniqueIndex('users_email_uq').on(sql`lower(${t.email})`)]);
+  referralCode: text('referral_code'), // código de "indique um amigo"
+  referredBy: uuid('referred_by'), // quem indicou esta pessoa
+}, (t) => [uniqueIndex('users_email_uq').on(sql`lower(${t.email})`), uniqueIndex('users_referral_uq').on(t.referralCode)]);
 
 export const sessions = pgTable('sessions', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -147,6 +149,8 @@ export const bookings = pgTable('bookings', {
   paymentStatus: paymentStatusEnum('payment_status').notNull().default('unpaid'),
   paymentMethod: payMethodEnum('payment_method').notNull().default('pix'),
   payoutId: uuid('payout_id'), // preenchido quando o valor foi repassado ao parceiro
+  couponId: uuid('coupon_id'), // cupom usado na reserva
+  discountCents: integer('discount_cents').notNull().default(0), // desconto pago pelo RolêJunto (o parceiro recebe o valor cheio)
   checkInAt: ts('check_in_at'),
   completedAt: ts('completed_at'),
   cancelledBy: uuid('cancelled_by'),
@@ -154,6 +158,53 @@ export const bookings = pgTable('bookings', {
   createdAt: createdAt(),
   updatedAt: ts('updated_at').defaultNow().notNull(),
 }, (t) => [index('bookings_client_idx').on(t.clientId), index('bookings_partner_idx').on(t.partnerId, t.startsAt)]);
+
+// Folgas e férias do parceiro: dias em que a agenda fica fechada
+export const timeOff = pgTable('time_off', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  partnerId: uuid('partner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  startDate: date('start_date').notNull(), // AAAA-MM-DD (inclusive)
+  endDate: date('end_date').notNull(), // AAAA-MM-DD (inclusive)
+  note: text('note').notNull().default(''),
+  createdAt: createdAt(),
+}, (t) => [index('time_off_partner_idx').on(t.partnerId)]);
+
+// Contas do Google/Apple ligadas a um usuário
+export const oauthAccounts = pgTable('oauth_accounts', {
+  provider: text('provider').notNull(), // google | apple
+  subject: text('subject').notNull(), // id da pessoa no provedor
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  email: text('email'),
+  createdAt: createdAt(),
+}, (t) => [primaryKey({ columns: [t.provider, t.subject] }), index('oauth_user_idx').on(t.userId)]);
+
+// Cupons de desconto (campanhas do admin e prêmios de "indique um amigo")
+export const coupons = pgTable('coupons', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  code: text('code').notNull(),
+  kind: text('kind').notNull(), // percent | fixed
+  value: integer('value').notNull(), // percent: 1–100 · fixed: centavos
+  maxDiscountCents: integer('max_discount_cents'), // teto para cupons de porcentagem
+  minTotalCents: integer('min_total_cents').notNull().default(0),
+  maxUses: integer('max_uses'), // null = sem limite
+  usesCount: integer('uses_count').notNull().default(0),
+  perUser: integer('per_user').notNull().default(1),
+  ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'cascade' }), // cupom pessoal (só o dono usa)
+  source: text('source').notNull().default('campaign'), // campaign | referral
+  validUntil: ts('valid_until'),
+  active: boolean('active').notNull().default(true),
+  createdBy: uuid('created_by'),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex('coupons_code_uq').on(sql`upper(${t.code})`), index('coupons_owner_idx').on(t.ownerId)]);
+
+export const couponRedemptions = pgTable('coupon_redemptions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  couponId: uuid('coupon_id').notNull().references(() => coupons.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  bookingId: uuid('booking_id').notNull(),
+  discountCents: integer('discount_cents').notNull(),
+  createdAt: createdAt(),
+}, (t) => [index('redemptions_coupon_user_idx').on(t.couponId, t.userId)]);
 
 export const payments = pgTable('payments', {
   id: uuid('id').primaryKey().defaultRandom(),

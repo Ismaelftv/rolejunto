@@ -17,7 +17,15 @@ O front-end e a API já estão ligados:
 - busca e perfis;
 - reservas, pagamento, chat e notificações;
 - verificação de identidade, denúncias e bloqueios;
-- painel do parceiro e painel administrativo.
+- painel do parceiro e painel administrativo;
+- mapa de verdade (OpenStreetMap), com a região aproximada de cada parceiro;
+- chat instantâneo (mensagens, "digitando…" e notificações chegam na hora);
+- agenda com horários exatos e bloqueio de datas (folgas e férias);
+- login com Google e Apple;
+- indique um amigo e cupons de desconto;
+- aviso quando um favorito abre horários;
+- foto real aprovada obrigatória para o parceiro aparecer na busca;
+- telas de boas-vindas no primeiro uso, modo escuro e tela de abertura do app Android com a logo.
 
 Todos os textos estão em 4 idiomas (🇧🇷 🇪🇸 🇺🇸 🇨🇳), inclusive as mensagens de erro da API.
 
@@ -134,6 +142,8 @@ O RolêJunto envia e-mails com a marca e no idioma de cada pessoa.
 - verificação aprovada ou recusada;
 - foto recusada;
 - repasse enviado;
+- favorito com horários livres (no máximo 1 aviso por dia por parceiro);
+- cupom ganho por indicação;
 - para os admins: SOS e denúncias urgentes.
 
 Cada pessoa pode desligar os avisos em **Perfil → Notificações → "E-mails sobre reservas, mensagens e pagamentos"**. Os avisos de segurança e de conta chegam sempre: verificação, advertência, repasse, SOS e denúncias urgentes.
@@ -188,7 +198,32 @@ Quando o volume crescer (algumas dezenas de reservas por dia), troque o Gmail pe
 
 ---
 
-## 4. App Android e iOS
+## 4. Login com Google e Apple
+
+Os botões só aparecem depois de configurados. Na primeira vez, a pessoa completa nome, data de nascimento (18+) e aceita os termos; o e-mail já vem confirmado. Se o e-mail já tiver conta, o login é ligado a ela.
+
+**Google**
+1. Abra [console.cloud.google.com](https://console.cloud.google.com) → APIs e serviços → **Tela de permissão OAuth**: preencha nome (RolêJunto), e-mail de suporte, links da Privacidade e dos Termos.
+2. **Credenciais → Criar credenciais → ID do cliente OAuth → Aplicativo da Web**.
+3. Em "Origens JavaScript autorizadas", coloque `https://seudominio.com.br` (e `http://localhost:5173` para testar no computador).
+4. Copie o ID (termina em `.apps.googleusercontent.com`) para `GOOGLE_CLIENT_ID` no `.env`.
+
+**Apple** (precisa da conta Apple Developer, US$ 99/ano)
+1. Em [developer.apple.com](https://developer.apple.com/account/resources/identifiers) crie um **App ID** com "Sign in with Apple" e depois um **Services ID** (ex.: `br.com.rolejunto.web`).
+2. No Services ID, ative "Sign in with Apple" e cadastre o domínio `seudominio.com.br` e o Return URL `https://seudominio.com.br/entrar`.
+3. Coloque o Services ID em `APPLE_CLIENT_ID` no `.env`.
+
+Aplique com `docker compose up -d`. Para aceitar logins vindos de mais de um app (ex.: site e Android), separe os IDs por vírgula.
+
+> No app Android/iOS empacotado, o login social pelo navegador não funciona dentro do app (regra do Google). O app mostra e-mail e senha; para ter Google/Apple nativos, adicione um plugin como `@capacitor-firebase/authentication` e envie o ID token para `POST /api/auth/oauth`.
+
+**Indique um amigo e cupons.** Cada cliente tem um link em **Perfil → Indique e ganhe**. Quando o amigo se cadastra por ele e conclui o primeiro encontro, os dois ganham um cupom de `REFERRAL_REWARD_CENTS` (padrão R$ 20, válido por 90 dias). Campanhas (ex.: `BEMVINDO10`, 10% até R$ 20) são criadas em **Painel admin → Cupons**. O desconto sai da taxa da plataforma: o parceiro sempre recebe o valor cheio, e o Financeiro mostra o total em descontos.
+
+**Mapa.** Usa o OpenStreetMap por padrão. Com muito acesso, configure um provedor de mapas (`MAP_TILES_URL` e `MAP_ATTRIBUTION` no `.env`; exemplo no `.env.example`) e rode `docker compose up -d --build`.
+
+---
+
+## 5. App Android e iOS
 
 O app é o mesmo site empacotado com Capacitor. Gere-o apontando para o endereço da API:
 
@@ -200,9 +235,11 @@ VITE_API_URL=https://seudominio.com.br npm run ios       # abre o Xcode (precisa
 
 No app, o login usa um token guardado no aparelho em vez do cookie do site. Detalhes em `web/README.md`.
 
+A tela de abertura do Android já vem com a logo, em fundo escuro (`android/app/src/main/res/drawable*/splash.png` e, no Android 12+, `drawable/splash_icon.xml`).
+
 ---
 
-## 5. Antes de abrir para o público
+## 6. Antes de abrir para o público
 
 1. **Pagamentos.** Crie a conta no Mercado Pago e teste primeiro com as credenciais de teste.
    - No `.env`: `PAYMENT_PROVIDER=mercadopago`, `MERCADOPAGO_ACCESS_TOKEN` e `MERCADOPAGO_WEBHOOK_SECRET`.
@@ -214,9 +251,9 @@ No app, o login usa um token guardado no aparelho em vez do cookie do site. Deta
 
 ---
 
-## 6. Regras de segurança garantidas pela API
+## 7. Regras de segurança garantidas pela API
 
-- Só maiores de 18 anos. E-mail confirmado e verificação de identidade obrigatórios para reservar. Parceiros só aparecem na busca depois de verificados.
+- Só maiores de 18 anos. E-mail confirmado e verificação de identidade obrigatórios para reservar. Parceiros só aparecem na busca depois de verificados e com uma foto real aprovada pela equipe.
 - **Casa e Sítio** só liberam depois de um encontro **concluído em local público** com a mesma pessoa, com contato de confiança cadastrado e endereço compartilhado.
 - O chat bloqueia telefone, e-mail e links antes do encontro. Pedido ou oferta de serviço sexual não é entregue e vira denúncia urgente.
 - O pagamento fica retido e só é liberado ao parceiro depois do encontro. As regras de cancelamento são:

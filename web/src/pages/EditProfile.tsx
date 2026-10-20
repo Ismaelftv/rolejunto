@@ -33,7 +33,7 @@ function shrink(file: File): Promise<Blob> {
 export default function EditProfile() {
   const { d } = useI18n();
   useTitle(d.edit.title);
-  const { user, updateUser, setUser, toast, fail } = useStore();
+  const { user, updateUser, setUser, toast, fail, refreshUser } = useStore();
   const nav = useNavigate();
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -74,11 +74,13 @@ export default function EditProfile() {
   };
   const changePass = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pw.cur) return setPwErr(d.live.errors.wrong_password);
+    const noPass = user?.hasPassword === false;
+    if (!noPass && !pw.cur) return setPwErr(d.live.errors.wrong_password);
     if (pw.next.length < 8) return setPwErr(d.edit.errPass);
     if (pw.next !== pw.confirm) return setPwErr(d.edit.errMatch);
     try {
-      await post('/me/password', { current: pw.cur, next: pw.next });
+      await post('/me/password', noPass ? { next: pw.next } : { current: pw.cur, next: pw.next });
+      if (noPass) await refreshUser();
       setPwErr(''); setPw({ cur: '', next: '', confirm: '' }); toast(d.edit.passSaved);
     } catch (ex) { setPwErr(errorText(d, ex)); }
   };
@@ -114,7 +116,7 @@ export default function EditProfile() {
               {ACTIVITIES.map((a) => {
                 const on = interests.includes(a.key);
                 return (
-                  <button type="button" key={a.key} className="chip" aria-pressed={on} style={on ? { background: a.color, color: '#fff' } : { background: a.soft, color: a.color }}
+                  <button type="button" key={a.key} className="chip" aria-pressed={on} style={on ? { background: a.color, color: '#fff' } : { background: a.soft, color: a.ink }}
                     onClick={() => setInterests(on ? interests.filter((k) => k !== a.key) : [...interests, a.key])}>
                     <Icon d={a.icon} size={16} /> {d.act[a.key].label}
                   </button>
@@ -126,8 +128,10 @@ export default function EditProfile() {
         </form>
 
         <form className="card card-pad stack gap-12" onSubmit={changePass} noValidate>
-          <h2 className="h-sm">{d.edit.passTitle}</h2>
-          <div className="field"><label htmlFor="pc">{d.edit.current}</label><input id="pc" type="password" autoComplete="current-password" className="input" value={pw.cur} onChange={(e) => setPw({ ...pw, cur: e.target.value })} /></div>
+          <h2 className="h-sm">{user?.hasPassword === false ? d.g.account.setPassword : d.edit.passTitle}</h2>
+          {user?.hasPassword === false ? <span className="small muted">{d.g.account.setPasswordHint}</span> : (
+            <div className="field"><label htmlFor="pc">{d.edit.current}</label><input id="pc" type="password" autoComplete="current-password" className="input" value={pw.cur} onChange={(e) => setPw({ ...pw, cur: e.target.value })} /></div>
+          )}
           <div className="grid-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 12 }}>
             <div className="field"><label htmlFor="pn">{d.edit.newPass}</label><input id="pn" type="password" autoComplete="new-password" className="input" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} /></div>
             <div className="field"><label htmlFor="pc2">{d.edit.confirm}</label><input id="pc2" type="password" autoComplete="new-password" className="input" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} /></div>

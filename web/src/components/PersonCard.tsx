@@ -17,7 +17,7 @@ export function PersonCard({ p, focus }: { p: Partner; focus?: ActivityKey | nul
       <Link to={`/parceiro/${p.id}${focus && p.tags.includes(focus) ? `?a=${focus}` : ''}`} className="pc-main">
         <div className="person-photo" style={{ background: p.hasPhotos ? p.photos[0] : main.color }}>
           {!p.hasPhotos && <span className="ini" aria-hidden>{p.initial}</span>}
-          {p.online && <span className="badge badge-teal on" style={{ background: '#fff' }}><span className="dot" /> {d.common.online}</span>}
+          {p.online && <span className="badge badge-teal on" style={{ background: 'var(--white)' }}><span className="dot" /> {d.common.online}</span>}
         </div>
         <div className="stack gap-4 grow" style={{ paddingTop: 2 }}>
           <div className="row gap-8">
@@ -40,7 +40,7 @@ export function PersonCard({ p, focus }: { p: Partner; focus?: ActivityKey | nul
         <button
           className="icon-btn" style={{ width: 40, height: 40 }}
           aria-label={fav ? f(d.account.favRemove, { name: p.name }) : f(d.account.favAdd, { name: p.name })} aria-pressed={fav}
-          onClick={() => { toggleFav(p.id); if (!fav) toast(f(d.account.favToast, { name: p.name })); }}
+          onClick={() => { toggleFav(p.id); if (!fav) toast(f(d.g.fav.alert, { name: p.name })); }}
         >
           <Icon name="heart" fill={fav ? 'var(--accent)' : 'none'} stroke={fav ? 'var(--accent)' : 'var(--muted)'} />
         </button>

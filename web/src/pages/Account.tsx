@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { LogoMark } from '../components/Brand';
 import { PersonCard } from '../components/PersonCard';
+import { MyCoupons, ReferralCard, ThemePicker } from '../components/Growth';
 import { PageTitle, useTitle } from '../components/ui';
 import { usePartners } from '../lib/partners';
 import { del, get } from '../lib/api';
@@ -21,6 +22,7 @@ export default function Account() {
   const [contact, setContact] = useState(user?.trustedContact ?? { name: '', phone: '' });
   const [delPass, setDelPass] = useState('');
   const [delErr, setDelErr] = useState('');
+  const [delOk, setDelOk] = useState(false);
   const favs = usePartners(favorites);
   if (!user) return null;
   const v = d.account.ver[user.verification];
@@ -36,9 +38,10 @@ export default function Account() {
     } catch (e) { fail(e); }
   };
   const removeAccount = async () => {
-    if (!delPass) return setDelErr(d.live.delPassword);
+    const noPass = user.hasPassword === false;
+    if (noPass ? !delOk : !delPass) return setDelErr(noPass ? d.g.account.delConfirmNoPass : d.live.delPassword);
     try {
-      await del('/me', { password: delPass });
+      await del('/me', noPass ? { confirm: true } : { password: delPass });
       await logout();
       toast(d.live.deleted, 'warn');
       nav('/');
@@ -86,10 +89,10 @@ export default function Account() {
           </div>
         )}
 
-        <div className="card card-pad row wrap between gap-16" style={{ background: 'var(--ink)', color: '#fff', borderColor: 'var(--ink)' }}>
+        <div className="card card-pad row wrap between gap-16" style={{ background: 'var(--brand-ink)', color: 'var(--on-brand)', borderColor: 'var(--brand-ink)' }}>
           <div className="row gap-12" style={{ flex: '1 1 300px' }}>
             <LogoMark size={52} variant="coral" />
-            <div className="stack"><strong>{d.account.installTitle}</strong><span className="small" style={{ color: '#C9CEDB' }}>{install.installed ? d.account.installDone : install.canPrompt ? d.account.installText : install.ios ? d.account.installIos : d.account.installText}</span></div>
+            <div className="stack"><strong>{d.account.installTitle}</strong><span className="small" style={{ color: 'var(--brand-muted)' }}>{install.installed ? d.account.installDone : install.canPrompt ? d.account.installText : install.ios ? d.account.installIos : d.account.installText}</span></div>
           </div>
           {!install.installed && (
             <button className="btn btn-primary btn-sm" onClick={async () => { if (install.canPrompt) await install.prompt(); else toast(d.account.installIos, 'warn'); }}>
@@ -97,6 +100,9 @@ export default function Account() {
             </button>
           )}
         </div>
+
+        {user.role === 'cliente' && <ReferralCard />}
+        {user.role === 'cliente' && <MyCoupons />}
 
         <form className="card card-pad stack gap-12" onSubmit={(e) => { e.preventDefault(); void save({ trustedContact: contact.phone.trim() ? { name: contact.name.trim(), phone: contact.phone.trim() } : null }, d.account.contactSaved); }}>
           <div className="stack"><h2 className="h-sm">{d.account.contactTitle}</h2><span className="small muted">{d.account.contactText}</span></div>
@@ -112,12 +118,14 @@ export default function Account() {
           <div className="row wrap gap-8">
             {LANGS.map((l) => (
               <button key={l.code} className="chip" aria-pressed={lang === l.code} onClick={() => setLang(l.code)}
-                style={lang === l.code ? { background: 'var(--ink)', color: '#fff' } : { background: 'var(--soft)' }}>
+                style={lang === l.code ? { background: 'var(--ink)', color: 'var(--white)' } : { background: 'var(--soft)' }}>
                 <span aria-hidden style={{ fontSize: 18 }}>{l.flag}</span> {l.name}
               </button>
             ))}
           </div>
         </div>
+
+        <ThemePicker />
 
         <div className="card card-pad stack gap-12">
           <h2 className="h-sm">{d.account.notifTitle}</h2>
@@ -140,8 +148,14 @@ export default function Account() {
               <summary className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }}><Icon name="trash" size={16} /> {d.account.del}</summary>
               <div className="row wrap gap-8" style={{ marginTop: 8 }}>
                 <span className="small bold">{d.account.delConfirm}</span>
-                <label htmlFor="delpw" className="sr-only">{d.live.delPassword}</label>
-                <input id="delpw" type="password" className="input" autoComplete="current-password" placeholder={d.live.delPassword} value={delPass} onChange={(e) => { setDelPass(e.target.value); setDelErr(''); }} style={{ maxWidth: 260 }} />
+                {user.hasPassword === false ? (
+                  <label className="check"><input type="checkbox" checked={delOk} onChange={(e) => { setDelOk(e.target.checked); setDelErr(''); }} /> {d.g.account.delConfirmNoPass}</label>
+                ) : (
+                  <>
+                    <label htmlFor="delpw" className="sr-only">{d.live.delPassword}</label>
+                    <input id="delpw" type="password" className="input" autoComplete="current-password" placeholder={d.live.delPassword} value={delPass} onChange={(e) => { setDelPass(e.target.value); setDelErr(''); }} style={{ maxWidth: 260 }} />
+                  </>
+                )}
                 <button className="btn btn-danger btn-sm" onClick={removeAccount}>{d.account.del}</button>
                 {delErr && <span className="error" role="alert" style={{ width: '100%' }}>{delErr}</span>}
               </div>

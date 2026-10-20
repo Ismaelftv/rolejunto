@@ -1,10 +1,11 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { Logo } from '../components/Brand';
 import { useTitle } from '../components/ui';
 import { CONFIG } from '../lib/config';
-import { errorText, useStore, type Role } from '../lib/store';
+import { errorText, REF_KEY, readRef, useStore, type Role } from '../lib/store';
+import { publicConfig, SocialLogin } from '../components/SocialLogin';
 import { ApiError } from '../lib/api';
 import { LangSelect, useI18n } from '../i18n';
 
@@ -16,9 +17,9 @@ export function AuthShell({ children }: { children: ReactNode }) {
         <div className="row between gap-12"><Logo dark /><LangSelect dark /></div>
         <div className="stack gap-16">
           <h2 className="display h-lg">{d.auth.sideTitle}</h2>
-          <p style={{ color: '#C9CEDB', maxWidth: 420 }}>{d.auth.sideText}</p>
+          <p style={{ color: 'var(--brand-muted)', maxWidth: 420 }}>{d.auth.sideText}</p>
         </div>
-        <div className="stack gap-8 small" style={{ color: '#C9CEDB' }}>
+        <div className="stack gap-8 small" style={{ color: 'var(--brand-muted)' }}>
           {(['shield', 'lock', 'sos'] as const).map((ic, i) => (
             <span key={ic} className="row gap-8"><Icon name={ic} stroke="var(--teal-light)" size={18} /> {d.auth.side[i]}</span>
           ))}
@@ -70,12 +71,13 @@ export function Login() {
         <button className="btn btn-primary btn-sq btn-lg btn-block" data-testid="login-submit" disabled={busy}>{busy ? d.common.loading : d.auth.enter}</button>
         <Link to="/recuperar-senha" className="small bold" style={{ textAlign: 'center' }}>{d.auth.forgot}</Link>
       </form>
+      <SocialLogin next={params.get('next')} />
       <p className="small muted" style={{ textAlign: 'center' }}>{d.auth.noAccount} <Link to={`/cadastro${params.get('next') ? `?next=${encodeURIComponent(params.get('next')!)}` : ''}`} className="bold">{d.auth.create}</Link></p>
     </AuthShell>
   );
 }
 
-function ageFrom(date: string) {
+export function ageFrom(date: string) {
   const b = new Date(date);
   if (isNaN(b.getTime())) return -1;
   const t = new Date();
@@ -85,7 +87,7 @@ function ageFrom(date: string) {
 }
 
 export function Signup() {
-  const { d, lang } = useI18n();
+  const { d, f, money, lang } = useI18n();
   useTitle(d.auth.signupTitle);
   const { signup } = useStore();
   const nav = useNavigate();
@@ -94,6 +96,13 @@ export function Signup() {
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof fm, v: string | boolean) => setF({ ...fm, [k]: v });
+  // Convite: /cadastro?ref=CODIGO fica guardado no aparelho até o cadastro (inclusive pelo Google/Apple)
+  const [reward, setReward] = useState(0);
+  const ref = params.get('ref');
+  useEffect(() => {
+    if (ref) { try { localStorage.setItem(REF_KEY, ref.trim().toUpperCase().slice(0, 40)); } catch { /* ignore */ } }
+    if (ref || readRef()) void publicConfig().then((c) => setReward(c.referralRewardCents));
+  }, [ref]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,6 +135,7 @@ export function Signup() {
   return (
     <AuthShell>
       <div className="stack gap-8"><h1 className="display h-md" style={{ fontSize: 36 }}>{d.auth.signupTitle}</h1><p className="muted">{d.auth.signupSub}</p></div>
+      {reward > 0 && fm.role === 'cliente' && <div className="notice notice-teal" data-testid="ref-banner"><Icon name="gift" /> {f(d.g.referral.invited, { v: money(reward / 100) })}</div>}
       <form className="stack gap-16" onSubmit={submit} noValidate>
         <div className="grid-2">
           <label className={`radio-card ${fm.role === 'cliente' ? 'on' : ''}`}><input type="radio" name="tp" checked={fm.role === 'cliente'} onChange={() => set('role', 'cliente')} /><span className="small bold">{d.auth.wantCompany}</span></label>
@@ -142,6 +152,7 @@ export function Signup() {
         {errs.form && <span className="error" role="alert">{errs.form}</span>}
         <button className="btn btn-primary btn-sq btn-lg btn-block" disabled={busy}>{busy ? d.common.loading : d.common.continue}</button>
       </form>
+      <SocialLogin next={params.get('next')} />
       <p className="small muted" style={{ textAlign: 'center' }}>{d.auth.haveAccount} <Link to="/entrar" className="bold">{d.auth.enter}</Link></p>
     </AuthShell>
   );

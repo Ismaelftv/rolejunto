@@ -16,7 +16,14 @@
     </style>
 
 
+    <!-- Tela de abertura: fundo tinta (#121826) com o logo. Android 12+ usa o ícone animado; versões antigas, a imagem splash.png. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">#121826</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <item name="windowSplashScreenAnimationDuration">300</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+        <item name="android:statusBarColor">#121826</item>
+        <item name="android:navigationBarColor">#121826</item>
     </style>
 </resources>

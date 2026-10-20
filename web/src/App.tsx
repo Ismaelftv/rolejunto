@@ -24,6 +24,8 @@ import EditProfile from './pages/EditProfile';
 import Help from './pages/Help';
 import Blocked from './pages/Blocked';
 import ConfirmEmail from './pages/ConfirmEmail';
+import CompleteProfile from './pages/CompleteProfile';
+import Onboarding from './components/Onboarding';
 import { CookieBar, OfflineBar } from './components/Banners';
 
 export default function App() {
@@ -32,6 +34,7 @@ export default function App() {
       <Toasts />
       <OfflineBar />
       <CookieBar />
+      <Onboarding />
       <Routes>
         <Route element={<SiteLayout />}>
           <Route path="/sobre" element={<Home />} />
@@ -45,6 +48,7 @@ export default function App() {
 
         <Route path="/entrar" element={<Login />} />
         <Route path="/cadastro" element={<Signup />} />
+        <Route path="/completar-cadastro" element={<CompleteProfile />} />
         <Route path="/recuperar-senha" element={<ForgotPassword />} />
         <Route path="/confirmar-email" element={<RequireAuth><ConfirmEmail /></RequireAuth>} />
 

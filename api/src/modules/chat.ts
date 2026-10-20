@@ -7,6 +7,7 @@ import { E } from '../lib/errors.js';
 import { moderateText } from '../lib/moderation.js';
 import { getOrCreateConversation, participants } from './bookingService.js';
 import { blockedIds } from './partners.js';
+import { publish } from '../lib/events.js';
 
 const msgDto = (m: typeof messages.$inferSelect, me: string) => ({
   id: m.id, kind: m.kind, from: m.senderId === null ? 'system' : m.senderId === me ? 'me' : 'them',
@@ -54,6 +55,7 @@ export default function chatRoutes(app: FastifyInstance, ctx: Ctx) {
       .where(and(eq(messages.conversationId, c.id), eq(messages.hidden, false), before ? lt(messages.createdAt, new Date(before)) : undefined))
       .orderBy(desc(messages.createdAt)).limit(50);
     await ctx.db.update(messages).set({ readAt: new Date() }).where(and(eq(messages.conversationId, c.id), isNull(messages.readAt), ne(messages.senderId, u.id)));
+    publish(c.clientId === u.id ? c.partnerId : c.clientId, 'read', { conversationId: c.id });
     return { items: rows.reverse().map((m) => msgDto(m, u.id)) };
   });
 
@@ -76,7 +78,19 @@ export default function chatRoutes(app: FastifyInstance, ctx: Ctx) {
     }
     const [created] = await ctx.db.insert(messages).values({ conversationId: c.id, senderId: u.id, body }).returning();
     await ctx.db.update(conversations).set({ lastMessageAt: new Date() }).where(eq(conversations.id, c.id));
+    // tempo real: a outra pessoa recebe na hora (e as outras abas/aparelhos de quem enviou também)
+    publish(other, 'message', { conversationId: c.id, message: msgDto(created, other) });
+    publish(u.id, 'message', { conversationId: c.id, message: msgDto(created, u.id) });
     await notify(ctx.db, other, 'new_message', { conversationId: c.id, fromName: u.name.split(' ')[0] }, `/mensagens/${c.id}`);
     return reply.status(201).send({ message: msgDto(created, u.id) });
+  });
+
+  // "digitando…"
+  app.post<{ Params: { id: string } }>('/conversations/:id/typing', { config: { rateLimit: { max: 40, timeWindow: '1 minute' } } }, async (req) => {
+    const u = requireUser(req);
+    const c = await loadConv(u.id, req.params.id);
+    const other = c.clientId === u.id ? c.partnerId : c.clientId;
+    if (!(await blockedIds(ctx.db, u.id)).has(other)) publish(other, 'typing', { conversationId: c.id });
+    return { ok: true };
   });
 }

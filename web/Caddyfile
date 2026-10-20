@@ -1,6 +1,8 @@
 # Site do RolêJunto + API no mesmo domínio, com HTTPS automático (Let's Encrypt)
 {$DOMAIN} {
-	encode zstd gzip
+	# compressão em tudo, menos no canal de tempo real (que precisa sair na hora)
+	@compress not path /api/events
+	encode @compress zstd gzip
 
 	# API e fotos enviadas
 	handle /api/* {

@@ -27,10 +27,11 @@ export interface Partner {
   responseTime: string;
   neighborhood: string;
   avatarUrl?: string;
+  area: { lat: number; lng: number; radiusM: number } | null; // região aproximada (nunca o endereço)
   map: { x: number; y: number }; // posição ilustrativa (0–100) em volta de você, pela distância aproximada
   photos: string[]; // valores de "background": foto real ou cor da categoria
   hasPhotos: boolean;
-  agenda: { offset: number; day: string; date: string; slots: string[] }[]; // horários "HH:MM" (Brasília)
+  agenda: { offset: number; day: string; date: string; slots: string[]; off?: boolean }[]; // horários "HH:MM" (Brasília)
   reviews: Review[];
 }
 
@@ -51,7 +52,8 @@ export function toPartner(a: ApiPartnerCard | ApiPartnerDetail): Partner {
   const detail = 'agenda' in a ? a : null;
   const urls = (detail?.photos ?? []).map((ph) => assetUrl(ph.url)!).filter(Boolean);
   const avatar = assetUrl(a.avatarUrl);
-  const pics = urls.length ? urls : avatar ? [avatar] : [];
+  const cover = assetUrl(a.photoUrl);
+  const pics = urls.length ? urls : cover ? [cover] : avatar ? [avatar] : [];
   const colors = tags.map((t) => activityByKey(t).color);
   const angle = (hash(a.id) % 360) * (Math.PI / 180);
   const r = Math.min(46, 10 + (a.distanceKm ?? 3) * 4);
@@ -72,11 +74,12 @@ export function toPartner(a: ApiPartnerCard | ApiPartnerDetail): Partner {
     reviewsCount: a.reviewsCount,
     responseTime: responseLabel(a.responseMinutes),
     neighborhood: a.neighborhood,
-    avatarUrl: avatar,
+    avatarUrl: avatar ?? cover,
+    area: a.area ?? null,
     map: { x: Math.max(4, Math.min(96, 50 + Math.cos(angle) * r)), y: Math.max(4, Math.min(96, 50 + Math.sin(angle) * r)) },
     photos: pics.length ? pics.map((u) => `center / cover no-repeat url("${u}")`) : colors,
     hasPhotos: pics.length > 0,
-    agenda: (detail?.agenda ?? []).map((d) => ({ offset: d.offset, date: d.date, day: String(Number(d.date.slice(8, 10))), slots: d.slots })),
+    agenda: (detail?.agenda ?? []).map((d) => ({ offset: d.offset, date: d.date, day: String(Number(d.date.slice(8, 10))), slots: d.slots, off: d.off })),
     reviews: (detail?.reviews ?? []).map((rv) => ({
       id: rv.id, author: rv.author, activity: isAct(rv.activity) ? rv.activity : tags[0], rating: rv.rating, text: rv.text,
       date: `${rv.createdAt.slice(5, 7)}/${rv.createdAt.slice(0, 4)}`,
@@ -94,6 +97,7 @@ const SORT_API = { dist: 'distance', preco: 'price', nota: 'rating' } as const;
 
 export function usePartnerSearch(s: SearchParams, enabled = true) {
   const [items, setItems] = useState<Partner[]>([]);
+  const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const key = JSON.stringify(s);
@@ -113,15 +117,15 @@ export function usePartnerSearch(s: SearchParams, enabled = true) {
     else if (s.city) q.set('city', s.city);
     // pequena espera para não chamar a API a cada letra digitada
     const t = window.setTimeout(() => {
-      get<{ items: ApiPartnerCard[] }>(`/partners?${q}`)
-        .then((r) => { if (alive) { setItems(r.items.map(toPartner)); setError(null); } })
+      get<{ items: ApiPartnerCard[]; center?: { lat: number; lng: number } | null }>(`/partners?${q}`)
+        .then((r) => { if (alive) { setItems(r.items.map(toPartner)); setCenter(r.center ?? null); setError(null); } })
         .catch((e) => { if (alive) setError(e); })
         .finally(() => { if (alive) setLoading(false); });
     }, s.q ? 300 : 0);
     return () => { alive = false; window.clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, enabled]);
-  return { items, loading, error };
+  return { items, center, loading, error };
 }
 
 // ---------- Perfil ----------

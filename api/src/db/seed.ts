@@ -5,7 +5,9 @@ import { config } from '../config.js';
 import { approx } from '../lib/geo.js';
 import { hashPassword } from '../lib/security.js';
 import { openDatabase, type DB } from './index.js';
-import { availability, bookings, conversations, messages, partnerProfiles, payments, reviews, users } from './schema.js';
+import { availability, bookings, conversations, messages, partnerProfiles, payments, photos, reviews, users } from './schema.js';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { SEED_TRANSLATIONS } from './seedTranslations.js';
 
 const PARTNERS = [
@@ -41,6 +43,7 @@ export async function seed(db: DB, opts: { quiet?: boolean } = {}) {
       translations: SEED_TRANSLATIONS[p.name] ?? {},
     }).onConflictDoNothing();
     partnerIds[p.name] = u.id;
+    await seedPhotos(db, u.id, p.name, p.acts);
     await db.delete(availability).where(eq(availability.partnerId, u.id));
     const slots = p.slots as unknown as Record<string, string[] | undefined>;
     const rows = Object.entries(slots).flatMap(([wd, starts]) => (starts ?? []).map((start: string) => ({ partnerId: u.id, weekday: Number(wd), start })));
@@ -49,6 +52,39 @@ export async function seed(db: DB, opts: { quiet?: boolean } = {}) {
   await seedHistory(db, partnerIds, ana.id, upsertUser);
   log('Seed concluído. Senha de todas as contas de demonstração: rolejunto123');
   log('  admin@rolejunto.local · cliente@rolejunto.local · marina@rolejunto.local (e os demais parceiros)');
+}
+
+// Fotos ilustradas de demonstração (no lançamento, cada parceiro envia fotos reais, que passam pela moderação)
+const ACT_COLORS: Record<string, [string, string]> = {
+  balada: ['#7E22CE', '#C084FC'], bar: ['#9F1239', '#FB7185'], praia: ['#0369A1', '#38BDF8'], casa: ['#C2410C', '#FDBA74'],
+  sitio: ['#15803D', '#86EFAC'], show: ['#D9381E', '#FDA4AF'], jantar: ['#B45309', '#FCD34D'], museu: ['#5B3FD6', '#A5B4FC'],
+  turismo: ['#0B6B61', '#5EEAD4'], evento: ['#1D4ED8', '#93C5FD'], cuidado: ['#B0175A', '#F9A8D4'],
+};
+function portrait(seed: number, [dark, light]: [string, string], skin: string, hair: string) {
+  const r = (n: number) => ((seed * 9301 + n * 49297) % 233280) / 233280;
+  const blobs = Array.from({ length: 5 }, (_, i) => `<circle cx="${Math.round(r(i) * 600)}" cy="${Math.round(r(i + 9) * 520)}" r="${Math.round(60 + r(i + 3) * 120)}" fill="${light}" opacity="${(0.18 + r(i + 5) * 0.2).toFixed(2)}"/>`).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 750"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${dark}"/><stop offset="1" stop-color="${light}"/></linearGradient></defs>`
+    + `<rect width="600" height="750" fill="url(#g)"/>${blobs}`
+    + `<ellipse cx="300" cy="760" rx="230" ry="210" fill="${dark}" opacity="0.92"/>`
+    + `<rect x="262" y="430" width="76" height="90" rx="30" fill="${skin}"/>`
+    + `<ellipse cx="300" cy="330" rx="118" ry="138" fill="${hair}"/><ellipse cx="300" cy="358" rx="96" ry="112" fill="${skin}"/>`
+    + `<path d="M196 318 Q300 200 404 318 Q380 250 300 238 Q220 250 196 318Z" fill="${hair}"/>`
+    + `<circle cx="264" cy="360" r="9" fill="#121826"/><circle cx="336" cy="360" r="9" fill="#121826"/><path d="M270 410 Q300 432 330 410" stroke="#121826" stroke-width="7" fill="none" stroke-linecap="round"/></svg>`;
+}
+const SKINS = ['#F2C9A0', '#C68B59', '#8D5524', '#E0AC69', '#FFDBAC', '#A86B3C', '#D9A066'];
+const HAIRS = ['#2B1B10', '#121826', '#6B3E26', '#3B2A20', '#A0522D', '#1F1F1F', '#4A2F1B'];
+
+async function seedPhotos(db: DB, partnerId: string, name: string, acts: readonly string[]) {
+  const existing = await db.select({ id: photos.id }).from(photos).where(eq(photos.partnerId, partnerId)).limit(1);
+  if (existing.length) return;
+  mkdirSync(config.UPLOAD_DIR, { recursive: true });
+  const slug = name.normalize('NFD').replace(/[^\w]/g, '').toLowerCase();
+  const seed = [...slug].reduce((h, c) => h * 31 + c.charCodeAt(0), 7) % 1000;
+  for (let i = 0; i < 2; i++) {
+    const file = `seed-${slug}-${i + 1}.svg`;
+    writeFileSync(path.join(config.UPLOAD_DIR, file), portrait(seed + i * 17, ACT_COLORS[acts[i % acts.length]] ?? ['#121826', '#D9381E'], SKINS[seed % SKINS.length], HAIRS[(seed + 3) % HAIRS.length]));
+    await db.insert(photos).values({ partnerId, url: `/uploads/${file}`, status: 'approved', position: i });
+  }
 }
 
 // Encontros já concluídos com avaliações reais (alimentam notas e a aba "Avaliações").

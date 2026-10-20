@@ -11,6 +11,10 @@ import ptL from './live/pt';
 import esL from './live/es';
 import enL from './live/en';
 import zhL from './live/zh';
+import ptG from './growth/pt';
+import esG from './growth/es';
+import enG from './growth/en';
+import zhG from './growth/zh';
 import type { Dict, Lang } from './types';
 
 export type { Dict, Lang };
@@ -22,7 +26,7 @@ export const LANGS: { code: Lang; flag: string; name: string; short: string; loc
   { code: 'zh', flag: '🇨🇳', name: '中文', short: '中文', locale: 'zh-CN' },
 ];
 
-const DICTS: Record<Lang, Dict> = { pt: { ...pt, ...ptX, ...ptL }, es: { ...es, ...esX, ...esL }, en: { ...en, ...enX, ...enL }, zh: { ...zh, ...zhX, ...zhL } };
+const DICTS: Record<Lang, Dict> = { pt: { ...pt, ...ptX, ...ptL, ...ptG }, es: { ...es, ...esX, ...esL, ...esG }, en: { ...en, ...enX, ...enL, ...enG }, zh: { ...zh, ...zhX, ...zhL, ...zhG } };
 const KEY = 'rolejunto:lang';
 
 /** Troca {variáveis} no texto. */
@@ -71,7 +75,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<I18n>(() => {
     const d = DICTS[lang];
-    const nf = new Intl.NumberFormat(meta.locale, { style: 'currency', currency: 'BRL', currencyDisplay: 'narrowSymbol', minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    // valores inteiros sem centavos (R$ 90); com centavos, sempre 2 casas (R$ 178,20)
+    const nf0 = new Intl.NumberFormat(meta.locale, { style: 'currency', currency: 'BRL', currencyDisplay: 'narrowSymbol', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const nf2 = new Intl.NumberFormat(meta.locale, { style: 'currency', currency: 'BRL', currencyDisplay: 'narrowSymbol', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const nf = { format: (n: number) => (Math.abs(n - Math.round(n)) < 0.005 ? nf0 : nf2).format(n) };
     const wd = new Intl.DateTimeFormat(meta.locale, { weekday: 'short' });
     return {
       lang, setLang, d, f: fill, locale: meta.locale,

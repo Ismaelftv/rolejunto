@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { PersonCard, PersonCardSkeleton } from '../components/PersonCard';
 import { useTitle } from '../components/ui';
@@ -8,6 +8,7 @@ import { usePartnerSearch, type WhenKey } from '../lib/partners';
 import { useStore } from '../lib/store';
 import { LangSelect, useI18n } from '../i18n';
 
+const PartnerMap = lazy(() => import('../components/PartnerMap'));
 const WHENS: WhenKey[] = ['hoje', 'amanha', 'fds'];
 let lastGeo: { lat: number; lng: number } | null = null;
 
@@ -49,7 +50,7 @@ export default function Explore() {
   const cur = act ? activityByKey(act) : null;
   const color = cur?.color ?? 'var(--accent)';
 
-  const { items: people, loading, error } = usePartnerSearch({
+  const { items: people, center, loading, error } = usePartnerSearch({
     activity: act, when, q, radiusKm: maxDist, maxPrice: maxPrice < 150 ? maxPrice : undefined, online: onlineOnly, sort, ...(geo ?? {}), city: geo ? undefined : user?.city,
   });
 
@@ -82,7 +83,7 @@ export default function Explore() {
           <div className="act-scroller" role="radiogroup" aria-label={d.explore.actLabel}>
             <button role="radio" aria-checked={!act} className="act-tile" onClick={() => setAct(null)}
               style={!act ? { background: 'var(--soft)', borderColor: 'var(--ink)' } : undefined}>
-              <span className="ib" style={{ background: !act ? 'var(--ink)' : 'var(--soft)', color: !act ? '#fff' : 'var(--ink)' }}><Icon name="grid" size={22} /></span>
+              <span className="ib" style={{ background: !act ? 'var(--ink)' : 'var(--soft)', color: !act ? 'var(--white)' : 'var(--ink)' }}><Icon name="grid" size={22} /></span>
               {d.explore.all}
             </button>
             {ACTIVITIES.map((a) => {
@@ -90,9 +91,9 @@ export default function Explore() {
               return (
                 <button key={a.key} role="radio" aria-checked={on} className="act-tile" onClick={() => setAct(a.key)}
                   style={on ? { background: a.soft, borderColor: a.color } : undefined}>
-                  <span className="ib" style={{ background: on ? a.color : a.soft, color: on ? '#fff' : a.color, position: 'relative' }}>
+                  <span className="ib" style={{ background: on ? a.color : a.soft, color: on ? '#fff' : a.ink, position: 'relative' }}>
                     <Icon d={a.icon} size={22} width={2.1} />
-                    {a.privateVenue && <span style={{ position: 'absolute', right: -4, bottom: -4, width: 18, height: 18, borderRadius: 6, background: 'var(--ink)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="lock" size={10} width={2.6} /></span>}
+                    {a.privateVenue && <span style={{ position: 'absolute', right: -4, bottom: -4, width: 18, height: 18, borderRadius: 6, background: 'var(--ink)', color: 'var(--white)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="lock" size={10} width={2.6} /></span>}
                   </span>
                   <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.act[a.key].label}</span>
                 </button>
@@ -180,29 +181,9 @@ export default function Explore() {
         ) : view === 'lista' ? (
           <div className="person-grid">{people.map((p) => <PersonCard key={p.id} p={p} focus={act} />)}</div>
         ) : (
-          <div className="map-wrap" role="region" aria-label={d.explore.mapAria}>
-            <div className="map-road" style={{ left: -20, right: -20, top: '22%', height: 14, transform: 'rotate(-6deg)' }} />
-            <div className="map-road" style={{ left: -20, right: -20, top: '58%', height: 10, transform: 'rotate(4deg)' }} />
-            <div className="map-road" style={{ top: -20, bottom: -20, left: '32%', width: 12, transform: 'rotate(8deg)' }} />
-            <div className="map-road" style={{ top: -20, bottom: -20, left: '72%', width: 10, transform: 'rotate(-4deg)' }} />
-            <div style={{ position: 'absolute', left: '48%', top: '30%', width: 140, height: 90, borderRadius: 30, background: '#CFE7D7' }} />
-            <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: 70, height: 70, borderRadius: '50%', background: 'rgba(29,78,216,.12)', border: '2px solid rgba(29,78,216,.35)' }} />
-            <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: 20, height: 20, borderRadius: '50%', background: '#1D4ED8', border: '3px solid #fff' }} title={d.explore.you} />
-            {people.map((p) => {
-              const c = activityByKey(act && p.tags.includes(act) ? act : p.tags[0]).color;
-              return (
-                <Link key={p.id} to={`/parceiro/${p.id}`} className="map-pin" style={{ left: `${10 + p.map.x * 0.8}%`, top: `${10 + p.map.y * 0.75}%` }} aria-label={f(d.explore.pinAria, { name: p.name, n: p.distanceKm })}>
-                  <span className="area" style={{ background: c }} />
-                  <span className="av" style={{ background: c }}>{p.initial}</span>
-                  <span className="nm">{p.name} · {f(d.common.approxKm, { n: p.distanceKm })}</span>
-                </Link>
-              );
-            })}
-            <div className="map-note">
-              <Icon name="shield" stroke="var(--teal)" />
-              <span className="small muted"><strong style={{ color: 'var(--ink)' }}>{d.explore.mapNoteA}</strong> {d.explore.mapNoteB}</span>
-            </div>
-          </div>
+          <Suspense fallback={<div className="map-wrap skeleton" aria-busy="true"><span className="sr-only">{d.g.map.loading}</span></div>}>
+            <PartnerMap people={people} focus={act} center={center} me={geo} />
+          </Suspense>
         )}
       </div>
     </>

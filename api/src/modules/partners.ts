@@ -2,7 +2,9 @@ import type { FastifyInstance } from 'fastify';
 import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { DB } from '../db/index.js';
-import { availability, blocks, bookings, favorites, partnerProfiles, photos, reviews, users } from '../db/schema.js';
+import { availability, blocks, bookings, favorites, notifications, partnerProfiles, photos, reviews, timeOff, users } from '../db/schema.js';
+import { config } from '../config.js';
+import { notify } from '../lib/context.js';
 import { parse, requireRole, type Ctx } from '../lib/context.js';
 import { E } from '../lib/errors.js';
 import { approx, bbox, displayKm, distanceKm } from '../lib/geo.js';
@@ -34,11 +36,22 @@ export async function blockedIds(db: DB, userId?: string) {
 }
 
 /** Próximos 7 dias de horários livres (descontando reservas e horários que já passaram). */
+/** A data (AAAA-MM-DD) está numa folga do parceiro? */
+export async function offDates(db: DB, partnerId: string) {
+  const rows = await db.select().from(timeOff).where(eq(timeOff.partnerId, partnerId));
+  return (date: string) => rows.some((t) => t.startDate <= date && date <= t.endDate);
+}
+
+/** Tem pelo menos 1 foto aprovada (exigência para aparecer na busca). */
+export const hasApprovedPhoto = sql`exists (select 1 from ${photos} ph where ph.partner_id = ${users.id} and ph.status = 'approved')`;
+
 export async function agenda(db: DB, partnerId: string, minHours: number) {
   const slots = await db.select().from(availability).where(eq(availability.partnerId, partnerId));
+  const isOff = await offDates(db, partnerId);
   const taken = await db.select().from(bookings).where(and(eq(bookings.partnerId, partnerId), inArray(bookings.status, [...ACTIVE_STATUSES])));
   return Array.from({ length: 7 }, (_, offset) => {
     const { iso, weekday } = localDay(offset);
+    if (isOff(iso)) return { date: iso, offset, slots: [] as string[], off: true };
     const free = slots.filter((s) => s.weekday === weekday).map((s) => s.start).sort()
       .filter((start) => {
         const t = new Date(`${iso}T${start}:00${TZ}`).getTime();
@@ -46,7 +59,7 @@ export async function agenda(db: DB, partnerId: string, minHours: number) {
         const end = t + minHours * 3600_000;
         return !taken.some((b) => b.startsAt.getTime() < end && t < b.startsAt.getTime() + b.hours * 3600_000);
       });
-    return { date: iso, offset, slots: free };
+    return { date: iso, offset, slots: free, off: false };
   });
 }
 
@@ -54,18 +67,41 @@ export async function agenda(db: DB, partnerId: string, minHours: number) {
 export async function searchChecklist(db: DB, u: { id: string; verification: string; emailVerifiedAt: Date | null }) {
   const [p] = await db.select().from(partnerProfiles).where(eq(partnerProfiles.userId, u.id));
   const slots = await db.select({ w: availability.weekday }).from(availability).where(eq(availability.partnerId, u.id)).limit(1);
+  const pics = await db.select({ status: photos.status }).from(photos).where(eq(photos.partnerId, u.id));
   const c = {
     emailVerified: !!u.emailVerifiedAt,
     identityVerified: u.verification === 'verified',
     hasLocation: p?.approxLat != null && p?.approxLng != null,
     hasActivities: (p?.activities.length ?? 0) > 0,
     hasAvailability: slots.length > 0,
+    hasPhoto: !config.REQUIRE_PARTNER_PHOTO || pics.some((x) => x.status === 'approved'),
     visible: !!p?.visible,
   };
-  return { ...c, searchable: Object.values(c).every(Boolean) };
+  return { ...c, photoPending: pics.some((x) => x.status === 'pending'), searchable: Object.values(c).every(Boolean) };
 }
 
 export default function partnerRoutes(app: FastifyInstance, ctx: Ctx) {
+  /** Primeira foto aprovada de cada parceiro (capa do card). */
+  async function coverPhotos(ids: string[]) {
+    if (!ids.length) return new Map<string, string>();
+    const rows = await ctx.db.select({ partnerId: photos.partnerId, url: photos.url }).from(photos)
+      .where(and(inArray(photos.partnerId, ids), eq(photos.status, 'approved'))).orderBy(photos.position, photos.createdAt);
+    const m = new Map<string, string>();
+    for (const r of rows) if (!m.has(r.partnerId)) m.set(r.partnerId, r.url);
+    return m;
+  }
+
+  /** Avisa quem favoritou o parceiro que ele abriu horários (no máximo 1 aviso por dia por pessoa). */
+  async function notifyFavorites(partnerId: string, partnerName: string) {
+    const fans = await ctx.db.select({ userId: favorites.userId }).from(favorites).where(eq(favorites.partnerId, partnerId));
+    if (!fans.length) return;
+    const since = new Date(Date.now() - 24 * 3600_000);
+    const recent = await ctx.db.select({ userId: notifications.userId, data: notifications.data }).from(notifications)
+      .where(and(eq(notifications.type, 'favorite_available'), gte(notifications.createdAt, since), inArray(notifications.userId, fans.map((f) => f.userId))));
+    const already = new Set(recent.filter((n) => (n.data as { partnerId?: string })?.partnerId === partnerId).map((n) => n.userId));
+    for (const f of fans) if (!already.has(f.userId)) await notify(ctx.db, f.userId, 'favorite_available', { partnerId, partnerName: partnerName.split(' ')[0] }, `/parceiro/${partnerId}`);
+  }
+
   // ---------- Busca ----------
   app.get('/partners', async (req) => {
     const q = parse(z.object({
@@ -90,6 +126,7 @@ export default function partnerRoutes(app: FastifyInstance, ctx: Ctx) {
       gte(partnerProfiles.approxLat, box.minLat), lte(partnerProfiles.approxLat, box.maxLat),
       gte(partnerProfiles.approxLng, box.minLng), lte(partnerProfiles.approxLng, box.maxLng),
     ];
+    if (config.REQUIRE_PARTNER_PHOTO) conds.push(hasApprovedPhoto);
     if (q.activity) conds.push(sql`${q.activity} = ANY(${partnerProfiles.activities})`);
     if (q.maxPriceCents) conds.push(lte(partnerProfiles.priceCents, q.maxPriceCents));
     if (q.q) conds.push(or(ilike(users.name, `%${q.q}%`), ilike(partnerProfiles.bio, `%${q.q}%`), ilike(partnerProfiles.neighborhood, `%${q.q}%`))!);
@@ -99,20 +136,21 @@ export default function partnerRoutes(app: FastifyInstance, ctx: Ctx) {
     }
     const rows = await ctx.db.select({ u: users, p: partnerProfiles }).from(users).innerJoin(partnerProfiles, eq(partnerProfiles.userId, users.id)).where(and(...conds));
     const hidden = await blockedIds(ctx.db, req.user?.id);
+    const covers = await coverPhotos(rows.map((r) => r.u.id));
     let list = rows.filter((r) => !hidden.has(r.u.id) && r.u.id !== req.user?.id).map((r) => {
       const km = distanceKm(lat, lng, r.p.approxLat!, r.p.approxLng!);
-      return { km, card: dto.partnerCard(r.u, r.p, displayKm(km), ageFrom(r.u.birthDate)) };
+      return { km, card: dto.partnerCard(r.u, r.p, displayKm(km), ageFrom(r.u.birthDate), covers.get(r.u.id) ?? null) };
     }).filter((x) => x.km <= q.radiusKm);
     if (q.online) list = list.filter((x) => x.card.online);
     list.sort((a, b) => (q.sort === 'price' ? a.card.priceCents - b.card.priceCents : q.sort === 'rating' ? (b.card.rating ?? 0) - (a.card.rating ?? 0) : a.km - b.km));
-    return { total: list.length, items: list.slice(q.offset, q.offset + q.limit).map((x) => x.card) };
+    return { total: list.length, center: { lat, lng }, items: list.slice(q.offset, q.offset + q.limit).map((x) => x.card) };
   });
 
   // ---------- Perfil público ----------
   app.get<{ Params: { id: string } }>('/partners/:id', async (req) => {
     const id = parse(z.string().uuid(), req.params.id);
     const [row] = await ctx.db.select({ u: users, p: partnerProfiles }).from(users).innerJoin(partnerProfiles, eq(partnerProfiles.userId, users.id))
-      .where(and(eq(users.id, id), eq(users.status, 'active'), eq(users.verification, 'verified'), eq(partnerProfiles.visible, true)));
+      .where(and(eq(users.id, id), eq(users.status, 'active'), eq(users.verification, 'verified'), eq(partnerProfiles.visible, true), ...(config.REQUIRE_PARTNER_PHOTO ? [hasApprovedPhoto] : [])));
     if (!row || (await blockedIds(ctx.db, req.user?.id)).has(id)) throw E.notFound('partner_not_found');
     const lat = Number((req.query as { lat?: string }).lat ?? DEFAULT_LOC.lat);
     const lng = Number((req.query as { lng?: string }).lng ?? DEFAULT_LOC.lng);
@@ -126,7 +164,7 @@ export default function partnerRoutes(app: FastifyInstance, ctx: Ctx) {
     const [fav] = viewer ? await ctx.db.select().from(favorites).where(and(eq(favorites.userId, viewer.id), eq(favorites.partnerId, id))) : [];
     return {
       partner: {
-        ...dto.partnerCard(row.u, row.p, displayKm(distanceKm(lat, lng, row.p.approxLat ?? lat, row.p.approxLng ?? lng)), ageFrom(row.u.birthDate)),
+        ...dto.partnerCard(row.u, row.p, displayKm(distanceKm(lat, lng, row.p.approxLat ?? lat, row.p.approxLng ?? lng)), ageFrom(row.u.birthDate), pics[0]?.url ?? null),
         about: row.p.about, photos: pics,
         reviews: revs.map((x) => ({ id: x.r.id, author: shortName(x.author), activity: x.activity, rating: x.r.rating, text: x.r.text, createdAt: x.r.createdAt })),
         agenda: days,
@@ -174,6 +212,10 @@ export default function partnerRoutes(app: FastifyInstance, ctx: Ctx) {
     }
     const hasLocation = (lat !== undefined && lng !== undefined) || (current?.approxLat != null && current?.approxLng != null);
     if (b.visible && !hasLocation) throw E.unprocessable('location_required', 'Defina sua região (cidade ou localização) para aparecer nas buscas.');
+    if (b.visible && config.REQUIRE_PARTNER_PHOTO) {
+      const pics = await ctx.db.select({ id: photos.id }).from(photos).where(and(eq(photos.partnerId, u.id), inArray(photos.status, ['approved', 'pending']))).limit(1);
+      if (!pics.length) throw E.unprocessable('photo_required', 'Envie pelo menos uma foto sua para aparecer nas buscas.');
+    }
     const { lat: _lat, lng: _lng, ...rest } = b;
     // Texto novo sem traduções: as versões antigas em outros idiomas deixam de valer (o app mostra o texto original)
     if ((b.bio !== undefined || b.about !== undefined) && b.translations === undefined) rest.translations = {};
@@ -184,15 +226,52 @@ export default function partnerRoutes(app: FastifyInstance, ctx: Ctx) {
     };
     const [p] = await ctx.db.insert(partnerProfiles).values({ userId: u.id, ...values })
       .onConflictDoUpdate({ target: partnerProfiles.userId, set: values }).returning();
+    if (b.visible && current && !current.visible) await notifyFavorites(u.id, u.name); // voltou a aparecer
     return { profile: p, checklist: await searchChecklist(ctx.db, u) };
   });
 
   app.put('/partner/availability', async (req) => {
     const u = requireRole(req, 'partner');
-    const b = parse(z.object({ slots: z.array(z.object({ weekday: z.number().int().min(0).max(6), start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/) })).max(100) }), req.body);
+    // horários exatos: qualquer hora cheia ou meia hora (ex.: 19:00, 19:30)
+    const b = parse(z.object({ slots: z.array(z.object({ weekday: z.number().int().min(0).max(6), start: z.string().regex(/^([01]\d|2[0-3]):(00|30)$/) })).max(200) }), req.body);
+    const before = await ctx.db.select().from(availability).where(eq(availability.partnerId, u.id));
+    const had = new Set(before.map((x) => `${x.weekday}-${x.start}`));
     await ctx.db.delete(availability).where(eq(availability.partnerId, u.id));
     if (b.slots.length) await ctx.db.insert(availability).values(b.slots.map((s) => ({ partnerId: u.id, ...s }))).onConflictDoNothing();
-    return { ok: true, count: b.slots.length };
+    const added = b.slots.filter((x) => !had.has(`${x.weekday}-${x.start}`)).length;
+    if (added > 0) await notifyFavorites(u.id, u.name); // abriu horários novos
+    return { ok: true, count: b.slots.length, added };
+  });
+
+  // ---------- Folgas e férias ----------
+  app.get('/partner/time-off', async (req) => {
+    const u = requireRole(req, 'partner');
+    const today = localDay(0).iso;
+    const rows = await ctx.db.select().from(timeOff).where(and(eq(timeOff.partnerId, u.id), gte(timeOff.endDate, today))).orderBy(timeOff.startDate);
+    return { items: rows.map((t) => ({ id: t.id, startDate: t.startDate, endDate: t.endDate, note: t.note })) };
+  });
+
+  app.post('/partner/time-off', async (req, reply) => {
+    const u = requireRole(req, 'partner');
+    const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+    const b = parse(z.object({ startDate: day, endDate: day, note: z.string().trim().max(120).default('') }), req.body);
+    if (b.endDate < b.startDate) throw E.badRequest('invalid_dates', 'A data final precisa ser depois da inicial.');
+    if (b.startDate < localDay(0).iso) throw E.badRequest('invalid_dates', 'Escolha datas a partir de hoje.');
+    // Pedidos já aceitos nessas datas continuam valendo: o parceiro precisa cancelar um a um, para o cliente ser avisado e reembolsado.
+    const [t] = await ctx.db.insert(timeOff).values({ partnerId: u.id, ...b }).returning();
+    const startUtc = new Date(`${b.startDate}T00:00:00-03:00`);
+    const endUtc = new Date(new Date(`${b.endDate}T00:00:00-03:00`).getTime() + 86400_000);
+    const conflicts = await ctx.db.select({ id: bookings.id }).from(bookings)
+      .where(and(eq(bookings.partnerId, u.id), inArray(bookings.status, ['requested', 'accepted']), gte(bookings.startsAt, startUtc), lte(bookings.startsAt, endUtc)));
+    return reply.status(201).send({ timeOff: { id: t.id, startDate: t.startDate, endDate: t.endDate, note: t.note }, conflicts: conflicts.length });
+  });
+
+  app.delete<{ Params: { id: string } }>('/partner/time-off/:id', async (req) => {
+    const u = requireRole(req, 'partner');
+    const [t] = await ctx.db.delete(timeOff).where(and(eq(timeOff.id, parse(z.string().uuid(), req.params.id)), eq(timeOff.partnerId, u.id))).returning();
+    if (!t) throw E.notFound();
+    await notifyFavorites(u.id, u.name);
+    return { ok: true };
   });
 
   app.post('/partner/photos', async (req) => {
