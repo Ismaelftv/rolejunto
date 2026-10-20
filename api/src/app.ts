@@ -41,6 +41,15 @@ export async function buildApp(database: Database, opts: { payments?: PaymentPro
     bodyLimit: 1024 * 1024,
   });
 
+  // Guarda o corpo bruto dos avisos de pagamento: a assinatura do provedor é calculada sobre ele.
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+    try {
+      const text = String(body);
+      if (req.url.startsWith('/api/webhooks/')) (req as unknown as { rawBody?: string }).rawBody = text;
+      done(null, text.length ? JSON.parse(text) : {});
+    } catch (err) { (err as { statusCode?: number }).statusCode = 400; done(err as Error, undefined); }
+  });
+
   const ctx: Ctx = {
     db: database.db,
     payments: opts.payments ?? paymentProvider(),

@@ -37,6 +37,8 @@ services:
       args:
         VITE_MAP_TILES: ${MAP_TILES_URL:-}
         VITE_MAP_ATTRIBUTION: ${MAP_ATTRIBUTION:-}
+        VITE_COMPANY_NAME: ${COMPANY_NAME:-}
+        VITE_COMPANY_CNPJ: ${COMPANY_CNPJ:-}
     restart: unless-stopped
     ports: ["80:80", "443:443"]
     environment:

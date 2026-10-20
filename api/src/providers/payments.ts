@@ -1,5 +1,5 @@
 // Provedores de pagamento. Troque PAYMENT_PROVIDER=mercadopago em produção.
-import { createHmac, randomUUID } from 'node:crypto';
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { config } from '../config.js';
 
 export interface PixCharge { providerRef: string; pixCode: string; pixQrBase64?: string; expiresAt: Date }
@@ -8,13 +8,17 @@ export type ProviderStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 
 export interface PaymentProvider {
   name: string;
-  createPix(p: { paymentId: string; amountCents: number; description: string; payerEmail: string }): Promise<PixCharge>;
+  /** Provedor sem cartão (só Pix) */
+  noCard?: boolean;
+  /** Provedor sem API de estorno: o reembolso é feito à mão no painel do provedor */
+  manualRefund?: boolean;
+  createPix(p: { paymentId: string; amountCents: number; description: string; payerEmail: string; payerName?: string }): Promise<PixCharge>;
   createCard(p: { paymentId: string; amountCents: number; description: string; payerEmail: string; returnUrl: string }): Promise<CardCheckout>;
   /** Consulta a situação no provedor (usado quando o cliente toca em "Já paguei"). */
   getStatus(p: { providerRef: string; paymentId: string; method: 'pix' | 'card' }): Promise<ProviderStatus>;
   refund(p: { providerRef: string; amountCents: number }): Promise<void>;
   /** Valida e interpreta o aviso (webhook) do provedor. Retorna null se não for um evento de pagamento. */
-  parseWebhook(p: { headers: Record<string, string | string[] | undefined>; body: unknown; query: Record<string, string> }): Promise<{ paymentId: string; providerRef: string; status: ProviderStatus } | null>;
+  parseWebhook(p: { headers: Record<string, string | string[] | undefined>; body: unknown; query: Record<string, string>; rawBody?: string }): Promise<{ paymentId: string; providerRef: string; status: ProviderStatus } | null>;
 }
 
 // ---------- Mock (desenvolvimento) ----------
@@ -114,4 +118,82 @@ export const mercadoPagoProvider: PaymentProvider = {
   },
 };
 
-export const paymentProvider = (): PaymentProvider => (config.PAYMENT_PROVIDER === 'mercadopago' ? mercadoPagoProvider : mockProvider);
+// ---------- SharkPay ----------
+// Pix por cobrança avulsa (POST /api/pix/create). Autenticação: Basic chave-pública:chave-secreta em /api/auth devolve um token (30 dias).
+// Aviso de pagamento: webhook "invoice.paid" assinado em "SharkPay-Signature: t=<unix>,v1=<hmac_sha256(segredo, t.corpo)>".
+// Não há API de estorno nem de cartão sem dados do cartão: cartão fica desligado e o reembolso é feito no painel da SharkPay.
+let spToken: { value: string; exp: number } | null = null;
+
+async function spAuth(force = false): Promise<string> {
+  if (!force && spToken && spToken.exp > Date.now() + 60_000) return spToken.value;
+  if (!config.SHARKPAY_PUBLIC_KEY || !config.SHARKPAY_SECRET_KEY) throw new Error('SHARKPAY_PUBLIC_KEY / SHARKPAY_SECRET_KEY não configurados');
+  const res = await fetch(`${config.SHARKPAY_URL}/api/auth`, {
+    method: 'POST', headers: { Authorization: `Basic ${Buffer.from(`${config.SHARKPAY_PUBLIC_KEY}:${config.SHARKPAY_SECRET_KEY}`).toString('base64')}` },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) throw new Error(`SharkPay auth ${res.status}`);
+  const j = (await res.json()) as { success?: { token: string; expires_in?: number } };
+  if (!j.success?.token) throw new Error('SharkPay auth sem token');
+  spToken = { value: j.success.token, exp: Date.now() + Math.min((j.success.expires_in ?? 86400) * 1000, 24 * 3600_000) };
+  return spToken.value;
+}
+
+async function sp<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
+  const res = await fetch(`${config.SHARKPAY_URL}/api${path}`, {
+    ...init, signal: AbortSignal.timeout(20_000),
+    headers: { Authorization: `Bearer ${await spAuth()}`, Accept: 'application/json', 'Content-Type': 'application/json', ...(init.headers ?? {}) },
+  });
+  if (res.status === 401 && retry) { spToken = null; await spAuth(true); return sp<T>(path, init, false); }
+  if (!res.ok) throw new Error(`SharkPay ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  return res.json() as Promise<T>;
+}
+
+const mapSp = (s: string | number): ProviderStatus => {
+  const v = String(s).toUpperCase();
+  return v === 'PAID' || v === '1' ? 'paid' : v === 'REFUNDED' || v === '3' ? 'refunded' : v === 'CANCELED' || v === '2' ? 'failed' : 'pending';
+};
+
+export function verifySharkPaySignature(secret: string, header: string, body: string, toleranceSec = 300, now = Date.now()): boolean {
+  const parts: Record<string, string> = {};
+  for (const kv of header.split(',')) { const i = kv.indexOf('='); if (i > 0) parts[kv.slice(0, i).trim()] = kv.slice(i + 1).trim(); }
+  if (!parts.t || !parts.v1 || !/^\d+$/.test(parts.t)) return false;
+  if (Math.abs(now / 1000 - Number(parts.t)) > toleranceSec) return false;
+  const expected = createHmac('sha256', secret).update(`${parts.t}.${body}`).digest('hex');
+  const a = Buffer.from(expected), b = Buffer.from(parts.v1);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+export const sharkPayProvider: PaymentProvider = {
+  name: 'sharkpay', noCard: true, manualRefund: true,
+  async createPix({ paymentId, amountCents, description, payerEmail, payerName }) {
+    const doc = (config.SHARKPAY_PAYER_DOCUMENT ?? '').replace(/\D/g, '');
+    if (!doc) throw new Error('SHARKPAY_PAYER_DOCUMENT não configurado');
+    const expires = new Date(Date.now() + 15 * 60 * 1000);
+    const r = await sp<{ invoice: { reference: string; copy: string; qrcode?: string } }>('/pix/create', {
+      method: 'POST', headers: { 'Idempotency-Key': `rj-${paymentId}` },
+      body: JSON.stringify({
+        amount: (amountCents / 100).toFixed(2), email: payerEmail, quantity: 1, discount: 0, tax: 0,
+        invoice_no: paymentId, due_date: new Date(Date.now() + 24 * 3600_000).toISOString().slice(0, 10),
+        item_name: description.slice(0, 250), notes: description.slice(0, 480), document: doc, client: (payerName || payerEmail).slice(0, 190),
+      }),
+    });
+    const qr = r.invoice.qrcode?.replace(/^data:image\/\w+;base64,/, '');
+    return { providerRef: r.invoice.reference, pixCode: r.invoice.copy, pixQrBase64: qr, expiresAt: expires };
+  },
+  async createCard() { throw new Error('A SharkPay não está configurada para cartão.'); },
+  async getStatus({ providerRef }) {
+    const r = await sp<{ invoice: { status: string | number } }>(`/pix/invoice/${encodeURIComponent(providerRef)}`);
+    return mapSp(r.invoice.status);
+  },
+  async refund() { /* sem API: reembolso manual no painel da SharkPay (a API registra o pedido na auditoria) */ },
+  async parseWebhook({ headers, body, rawBody }) {
+    if (!config.SHARKPAY_WEBHOOK_SECRET) throw new Error('SHARKPAY_WEBHOOK_SECRET não configurado');
+    if (!rawBody || !verifySharkPaySignature(config.SHARKPAY_WEBHOOK_SECRET, String(headers['sharkpay-signature'] ?? ''), rawBody)) throw new Error('assinatura do webhook inválida');
+    const e = body as { type?: string; data?: { invoice?: { reference?: string; invoice_no?: string; status?: string } } };
+    const inv = e?.data?.invoice;
+    if (!e?.type?.startsWith('invoice.') || !inv?.reference || !inv.invoice_no) return null;
+    return { paymentId: inv.invoice_no, providerRef: inv.reference, status: mapSp(inv.status ?? '') };
+  },
+};
+
+export const paymentProvider = (): PaymentProvider => (config.PAYMENT_PROVIDER === 'sharkpay' ? sharkPayProvider : config.PAYMENT_PROVIDER === 'mercadopago' ? mercadoPagoProvider : mockProvider);

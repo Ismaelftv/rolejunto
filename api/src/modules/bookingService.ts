@@ -3,7 +3,7 @@ import { and, desc, eq, inArray, or } from 'drizzle-orm';
 import { config } from '../config.js';
 import type { DB } from '../db/index.js';
 import { bookings, conversations, messages, partnerProfiles, payments, reviews, users } from '../db/schema.js';
-import { notify, type Ctx } from '../lib/context.js';
+import { audit, notify, type Ctx } from '../lib/context.js';
 import { publish } from '../lib/events.js';
 import { releaseCoupon } from './growth.js';
 
@@ -53,7 +53,11 @@ export async function cancelBooking(ctx: Ctx, b: Booking, actorId: string, opts:
     const early = b.startsAt.getTime() - Date.now() > 24 * 3600_000;
     const full = opts.forceFullRefund || actorId === b.partnerId || early;
     const refund = full ? b.totalCents : Math.round(b.totalCents * config.LATE_CANCEL_REFUND_RATE);
-    if (pay?.providerRef && refund > 0) await ctx.payments.refund({ providerRef: pay.providerRef, amountCents: refund });
+    if (pay?.providerRef && refund > 0) {
+      await ctx.payments.refund({ providerRef: pay.providerRef, amountCents: refund });
+      // Provedor sem API de estorno (SharkPay): fica registrado para a equipe devolver o valor no painel do provedor
+      if (ctx.payments.manualRefund) await audit(ctx.db, null, 'payment.refund_manual_required', 'payment', pay.id, { amountCents: refund, providerRef: pay.providerRef, bookingId: b.id });
+    }
     if (pay) await ctx.db.update(payments).set({ refundedCents: refund, status: full ? 'refunded' : 'partially_refunded' }).where(eq(payments.id, pay.id));
     paymentStatus = full ? 'refunded' : 'partially_refunded';
   }

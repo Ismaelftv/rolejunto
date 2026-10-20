@@ -1,3 +1,4 @@
+import { legal } from './legal/pt';
 // Dicionário base (Português). Os outros idiomas seguem exatamente esta estrutura.
 const pt = {
   common: {
@@ -250,53 +251,7 @@ const pt = {
     warnA: 'O RolêJunto é', warnB: 'exclusivamente social', warnC: '. Oferecer, pedir ou aceitar qualquer serviço de natureza sexual leva ao banimento imediato e, quando cabível, à comunicação às autoridades.',
     start: 'Começar cadastro',
   },
-  legal: {
-    updated: 'Última atualização: {d}', draftA: 'Rascunho.', draftB: 'Este texto é um modelo inicial e precisa ser revisado por um advogado antes da publicação.',
-    contact: 'Fale com a equipe: {e}',
-    safety: {
-      title: 'Central de segurança',
-      blocks: [
-        { p: 'Segurança é a base do RolêJunto. Veja como protegemos você e o que você pode fazer em cada etapa.' },
-        { h: 'Antes do encontro', ul: ['Todos os usuários passam por verificação de identidade com documento e selfie. Menores de 18 anos não podem usar a plataforma.', 'Converse apenas pelo chat do RolêJunto e nunca pague por fora. O pagamento fica retido até o encontro.', 'Cadastre um contato de confiança em Minha conta.'] },
-        { h: 'Durante o encontro', ul: ['O primeiro encontro deve acontecer sempre em local público e movimentado (balada, bar, praia, restaurante, evento).', 'Casa e Sítio só ficam disponíveis depois de um primeiro encontro concluído, com o endereço compartilhado com seu contato de confiança e check-in obrigatório.', 'Use o botão SOS em Reservas se precisar de ajuda. Em perigo imediato, ligue 190.'] },
-        { h: 'Depois do encontro', ul: ['Avalie com sinceridade. As avaliações ajudam toda a comunidade.', 'Denuncie qualquer comportamento inadequado pelo perfil ou pelo chat. Denúncias são anônimas.'] },
-        { h: 'Tolerância zero', p: 'O RolêJunto é exclusivamente social. Pedir, oferecer ou aceitar serviços de natureza sexual, assédio, ameaças ou qualquer suspeita envolvendo menores de idade levam ao banimento imediato e, quando cabível, à comunicação às autoridades.' },
-      ],
-    },
-    guidelines: {
-      title: 'Diretrizes da comunidade',
-      blocks: [
-        { p: 'Estas regras valem para clientes e parceiros, no app e nos encontros.' },
-        { h: 'O que é o RolêJunto', p: 'Uma plataforma de companhia social para atividades: baladas, bares, praia, festas e encontros em grupo, shows, refeições, cultura, turismo, eventos e acompanhamento de pessoas idosas.' },
-        { h: 'Proibido', ul: ['Qualquer serviço, pedido, insinuação ou conteúdo de natureza sexual.', 'Fotos sensuais, com pouca roupa ou de outras pessoas.', 'Compartilhar telefone, redes sociais ou pedir pagamento fora da plataforma.', 'Primeiro encontro em residências, sítios, motéis ou hotéis.', 'Assédio, discriminação, ameaças, drogas ilícitas ou qualquer atividade ilegal.', 'Uso da plataforma por menores de 18 anos.'] },
-        { h: 'Casa e Sítio', ul: ['Só depois de um primeiro encontro concluído em local público com a mesma pessoa.', 'Endereço compartilhado com o contato de confiança e check-in obrigatório na chegada.', 'O parceiro pode recusar ou encerrar o encontro a qualquer momento, sem perder avaliações.'] },
-        { h: 'Esperado de todos', ul: ['Respeito, pontualidade e comunicação clara.', 'Perfis verdadeiros, com fotos recentes.', 'Recusar e denunciar qualquer pedido que viole estas regras.'] },
-        { h: 'Consequências', p: 'Advertência, suspensão ou banimento permanente, conforme a gravidade, sem prejuízo de medidas legais.' },
-      ],
-    },
-    terms: {
-      title: 'Termos de uso',
-      blocks: [
-        { h: '1. Sobre o serviço', p: 'O RolêJunto é uma plataforma que conecta pessoas maiores de 18 anos para atividades sociais de companhia. O RolêJunto não presta o serviço de companhia; atua como intermediador tecnológico e de pagamentos.' },
-        { h: '2. Cadastro e verificação', p: 'Para usar a plataforma é obrigatório ter 18 anos ou mais e concluir a verificação de identidade. Você se compromete a fornecer informações verdadeiras.' },
-        { h: '3. Natureza exclusivamente social', p: 'É proibido usar a plataforma para oferecer, solicitar ou contratar serviços de natureza sexual. A violação leva ao banimento e pode ser comunicada às autoridades.' },
-        { h: '4. Reservas, pagamentos e cancelamentos', p: 'O pagamento é feito na plataforma e retido até a conclusão do encontro. A taxa de serviço e a política de cancelamento são exibidas antes da confirmação. [Definir política de cancelamento e reembolso.]' },
-        { h: '5. Responsabilidades', p: '[Definir limites de responsabilidade, conduta dos usuários e mediação de conflitos.]' },
-        { h: '6. Foro e legislação', p: '[Definir foro e legislação aplicável.]' },
-      ],
-    },
-    privacy: {
-      title: 'Política de privacidade',
-      blocks: [
-        { p: 'Esta política explica como o RolêJunto trata seus dados pessoais, em conformidade com a Lei Geral de Proteção de Dados (Lei 13.709/2018).' },
-        { h: 'Dados que coletamos', ul: ['Cadastro: nome, e-mail, data de nascimento.', 'Verificação: imagem do documento e selfie (dado biométrico, considerado sensível), tratados com consentimento específico.', 'Localização aproximada, usada só para mostrar parceiros próximos. Nunca exibimos endereço.', 'Mensagens, reservas e avaliações, para prestar o serviço e garantir a segurança.', 'Registros de acesso, guardados por 6 meses conforme o Marco Civil da Internet.'] },
-        { h: 'Para que usamos', ul: ['Verificar identidade e maioridade.', 'Intermediar reservas e pagamentos.', 'Prevenir fraudes e proteger a comunidade (moderação e denúncias).'] },
-        { h: 'Compartilhamento', p: 'Com o provedor de verificação de identidade, o processador de pagamentos e autoridades quando exigido por lei. Não vendemos seus dados.' },
-        { h: 'Seus direitos', p: 'Você pode acessar, corrigir, baixar e excluir seus dados em Minha conta, ou falar com nosso encarregado (DPO).' },
-        { h: 'Retenção', p: '[Definir prazos de retenção por tipo de dado, incluindo exclusão das imagens de verificação após a aprovação.]' },
-      ],
-    },
-  },
+  legal,
   report: {
     title: 'Denunciar {name}', anon: 'Sua denúncia é anônima. Em caso de perigo imediato, ligue 190.', what: 'O que aconteceu?',
     reasons: ['Pediu ou ofereceu serviço de natureza sexual', 'Comportamento abusivo, ameaça ou assédio', 'Perfil falso ou fotos de outra pessoa', 'Parece ser menor de 18 anos', 'Pediu pagamento fora da plataforma', 'Outro motivo'],

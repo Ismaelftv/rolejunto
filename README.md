@@ -152,15 +152,15 @@ Cada pessoa pode desligar os avisos em **Perfil → Notificações → "E-mails 
 
 O Gmail não aceita a senha normal da conta em aplicativos. É preciso criar uma **senha de app** de 16 letras:
 
-1. Entre na conta Google que vai enviar os e-mails. O ideal é uma conta só do RolêJunto, como `rolejunto.app@gmail.com`.
+1. Entre na conta Google que vai enviar os e-mails. O ideal é uma conta só do RolêJunto, como `contatorolejunto@gmail.com`.
 2. Ative a **verificação em duas etapas**: [myaccount.google.com/security](https://myaccount.google.com/security) → "Verificação em duas etapas". É obrigatória para a senha de app.
 3. Abra [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords), dê um nome (por exemplo "RolêJunto") e toque em **Criar**.
 4. Copie as 16 letras que aparecem. Os espaços não importam.
 5. No `.env` do servidor, preencha:
    ```
-   GMAIL_USER=rolejunto.app@gmail.com
+   GMAIL_USER=contatorolejunto@gmail.com
    GMAIL_APP_PASSWORD=abcd efgh ijkl mnop
-   EMAIL_FROM=RolêJunto <rolejunto.app@gmail.com>
+   EMAIL_FROM=RolêJunto <contatorolejunto@gmail.com>
    ```
 6. Reinicie a API com `docker compose up -d` e envie um e-mail de teste:
    ```bash
@@ -172,9 +172,9 @@ O Gmail não aceita a senha normal da conta em aplicativos. É preciso criar uma
 - No site, entre como admin e abra **Painel admin → Sistema**. A tela mostra se o e-mail está funcionando, explica o erro em português e tem o botão "Enviar teste".
 - No servidor, rode o diagnóstico completo. Ele confere o banco, o e-mail (inclusive se a VPS bloqueia o Gmail), os pagamentos e as configurações, e diz como corrigir cada problema:
   ```bash
-  docker compose exec api node dist/doctor.js seuemail@gmail.com
+  docker compose exec api node dist/doctor.js contatorolejunto@gmail.com
   ```
-  No computador, use `npm run doctor -- seuemail@gmail.com`.
+  No computador, use `npm run doctor -- contatorolejunto@gmail.com`.
 
 **Mudou o `.env`?** Aplique com `docker compose up -d`. Só `docker compose restart` **não** lê o `.env` de novo.
 
@@ -186,7 +186,7 @@ O Gmail não aceita a senha normal da conta em aplicativos. É preciso criar uma
   - ou use o **Brevo**, que é grátis e envia por HTTPS: crie a conta em brevo.com, valide o seu e-mail como remetente, gere uma chave de API e coloque no `.env`:
     ```
     BREVO_API_KEY=xkeysib-...
-    EMAIL_FROM=RolêJunto <seuemail@gmail.com>
+    EMAIL_FROM=RolêJunto <contatorolejunto@gmail.com>
     ```
 - O e-mail caiu no spam: peça para as primeiras pessoas marcarem como "Não é spam".
 
@@ -241,9 +241,12 @@ A tela de abertura do Android já vem com a logo, em fundo escuro (`android/app/
 
 ## 6. Antes de abrir para o público
 
-1. **Pagamentos.** Crie a conta no Mercado Pago e teste primeiro com as credenciais de teste.
-   - No `.env`: `PAYMENT_PROVIDER=mercadopago`, `MERCADOPAGO_ACCESS_TOKEN` e `MERCADOPAGO_WEBHOOK_SECRET`.
-   - Cadastre o webhook: `https://seudominio.com.br/api/webhooks/payments`.
+1. **Pagamentos (SharkPay, só Pix).**
+   - No painel da SharkPay, gere as chaves da API e coloque no `.env`: `PAYMENT_PROVIDER=sharkpay`, `SHARKPAY_PUBLIC_KEY`, `SHARKPAY_SECRET_KEY` e `SHARKPAY_PAYER_DOCUMENT` (CPF ou CNPJ usado nas cobranças).
+   - Cadastre o webhook em Painel > API > Webhook com a URL `https://seudominio.com.br/api/webhooks/payments`. O segredo aparece **uma vez**: copie para `SHARKPAY_WEBHOOK_SECRET`. Use "Enviar teste" para conferir.
+   - A SharkPay não tem API de estorno: quando uma reserva paga é cancelada, o pedido de reembolso fica no histórico de ações do painel admin (`payment.refund_manual_required`) e você devolve o valor no painel da SharkPay.
+   - Cartão fica desligado com a SharkPay (a opção some do checkout). O Mercado Pago continua disponível com `PAYMENT_PROVIDER=mercadopago`.
+   - Rode `docker compose exec api node dist/doctor.js` para conferir a configuração.
 2. **E-mail.** Configure o Gmail (seção 3) e rode o e-mail de teste. Sem isso, ninguém consegue confirmar o cadastro.
 3. **Verificação de identidade.** Em produção, os documentos ficam "em análise" e são aprovados à mão no painel admin. Para automatizar, contrate Unico, idwall ou CAF (veja `api/README.md`).
 4. **SMS/WhatsApp** para avisar o contato de confiança no check-in e no SOS: `api/src/providers/messaging.ts`.

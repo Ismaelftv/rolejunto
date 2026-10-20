@@ -18,11 +18,11 @@ const bad = (m: string, fix?: string) => { failures++; console.log(`  ❌ ${m}`)
 const title = (t: string) => console.log(`\n${t}`);
 
 export const FIX: Record<MailProblem, string> = {
-  not_configured: 'Nenhum envio de e-mail configurado. No arquivo .env, preencha:\n  GMAIL_USER=seuemail@gmail.com\n  GMAIL_APP_PASSWORD=abcd efgh ijkl mnop\nDepois aplique com: docker compose up -d   (só "restart" NÃO lê o .env de novo)',
-  bad_user: 'GMAIL_USER precisa ser só o endereço, por exemplo: GMAIL_USER=rolejunto.app@gmail.com',
+  not_configured: 'Nenhum envio de e-mail configurado. No arquivo .env, preencha:\n  GMAIL_USER=contatorolejunto@gmail.com\n  GMAIL_APP_PASSWORD=abcd efgh ijkl mnop\nDepois aplique com: docker compose up -d   (só "restart" NÃO lê o .env de novo)',
+  bad_user: 'GMAIL_USER precisa ser só o endereço, por exemplo: GMAIL_USER=contatorolejunto@gmail.com',
   auth: 'O Gmail recusou o login (erro 535). Use a SENHA DE APP de 16 letras, não a senha normal do Gmail.\nCrie uma nova em https://myaccount.google.com/apppasswords e confira se GMAIL_USER é a mesma conta.',
   two_step: 'Esta conta precisa de senha de app (erro 534). Ative a verificação em duas etapas e crie a senha em https://myaccount.google.com/apppasswords',
-  blocked_port: 'O servidor não consegue se conectar ao Gmail: a VPS está bloqueando as portas de e-mail (465/587).\nPeça a liberação ao suporte da VPS, ou use o Brevo (grátis, envia por HTTPS): crie a conta em brevo.com,\ngere uma chave de API e coloque BREVO_API_KEY=... e EMAIL_FROM=RolêJunto <seuemail@gmail.com> no .env.',
+  blocked_port: 'O servidor não consegue se conectar ao Gmail: a VPS está bloqueando as portas de e-mail (465/587).\nPeça a liberação ao suporte da VPS, ou use o Brevo (grátis, envia por HTTPS): crie a conta em brevo.com,\ngere uma chave de API e coloque BREVO_API_KEY=... e EMAIL_FROM=RolêJunto <contatorolejunto@gmail.com> no .env.',
   tls: 'Falha de segurança (TLS) na conexão. Confira a data/hora do servidor e se há proxy ou antivírus interceptando.',
   rejected: 'O provedor recusou o envio. Com Gmail, o remetente (EMAIL_FROM) precisa ser o próprio GMAIL_USER. No Brevo/Resend, valide o remetente no painel deles.',
   unknown: 'Erro inesperado. Veja a mensagem técnica acima e confira as configurações de e-mail no .env.',
@@ -99,6 +99,11 @@ if (mailer.mode === 'console') {
 
 // ---------- Pagamentos e verificação ----------
 title('5. Pagamentos');
+if (config.PAYMENT_PROVIDER === 'sharkpay') {
+  if (config.SHARKPAY_PUBLIC_KEY && config.SHARKPAY_SECRET_KEY) ok('SharkPay: chaves configuradas'); else bad('SharkPay sem SHARKPAY_PUBLIC_KEY / SHARKPAY_SECRET_KEY');
+  if (config.SHARKPAY_PAYER_DOCUMENT) ok('SharkPay: documento do pagador configurado'); else bad('SharkPay sem SHARKPAY_PAYER_DOCUMENT (CPF/CNPJ usado nas cobranças)');
+  if (config.SHARKPAY_WEBHOOK_SECRET) ok('SharkPay: segredo do webhook configurado'); else warn('Defina SHARKPAY_WEBHOOK_SECRET para confirmar pagamentos automaticamente.');
+}
 if (config.PAYMENT_PROVIDER === 'mock') (isProd ? warn : ok)('Modo de TESTE: pagamentos simulados, sem cobrança real (PAYMENT_PROVIDER=mock).');
 else {
   if (config.MERCADOPAGO_ACCESS_TOKEN) ok('Mercado Pago: token configurado'); else bad('Mercado Pago sem MERCADOPAGO_ACCESS_TOKEN');

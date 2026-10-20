@@ -147,7 +147,7 @@ const zhL: LiveDict = {
       cmd: '在服务器上运行完整诊断：',
       problems: {
         not_configured: '服务器未配置邮件。请在 .env 文件中填写 GMAIL_USER 和 GMAIL_APP_PASSWORD，然后运行 "docker compose up -d" 生效（"restart" 不会重新读取 .env）。',
-        bad_user: 'GMAIL_USER 只能填写邮箱地址，例如 rolejunto.app@gmail.com。',
+        bad_user: 'GMAIL_USER 只能填写邮箱地址，例如 contatorolejunto@gmail.com。',
         auth: 'Gmail 拒绝登录（错误 535）。请使用 16 位应用专用密码，而不是普通密码，并确认 GMAIL_USER 是同一个账户。',
         two_step: '此账户需要应用专用密码（错误 534）。请开启两步验证并创建应用专用密码。',
         blocked_port: '服务器无法连接 Gmail：VPS 屏蔽了邮件端口（465/587）。请联系 VPS 客服开放端口，或改用通过 HTTPS 发送的 Brevo（BREVO_API_KEY）。',

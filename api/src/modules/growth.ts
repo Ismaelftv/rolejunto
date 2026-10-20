@@ -90,6 +90,7 @@ export default function growthRoutes(app: FastifyInstance, ctx: Ctx) {
     appleClientId: config.APPLE_CLIENT_ID ?? null,
     referralRewardCents: config.REFERRAL_REWARD_CENTS,
     requirePartnerPhoto: config.REQUIRE_PARTNER_PHOTO,
+    cardEnabled: !ctx.payments.noCard,
   }));
 
   // ---------- Indique um amigo ----------

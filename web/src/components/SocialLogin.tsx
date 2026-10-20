@@ -7,9 +7,9 @@ import { errorText, useStore } from '../lib/store';
 import { useI18n } from '../i18n';
 import { useTheme } from '../lib/theme';
 
-export interface PublicConfig { googleClientId: string | null; appleClientId: string | null; referralRewardCents: number; requirePartnerPhoto: boolean }
+export interface PublicConfig { googleClientId: string | null; appleClientId: string | null; referralRewardCents: number; requirePartnerPhoto: boolean; cardEnabled?: boolean }
 let cfgPromise: Promise<PublicConfig> | null = null;
-export const publicConfig = () => (cfgPromise ??= get<PublicConfig>('/public-config').catch(() => { cfgPromise = null; return { googleClientId: null, appleClientId: null, referralRewardCents: 0, requirePartnerPhoto: true }; }));
+export const publicConfig = () => (cfgPromise ??= get<PublicConfig>('/public-config').catch(() => { cfgPromise = null; return { googleClientId: null, appleClientId: null, referralRewardCents: 0, requirePartnerPhoto: true, cardEnabled: true }; }));
 
 const scripts = new Map<string, Promise<void>>();
 function loadScript(src: string) {

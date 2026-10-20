@@ -1,4 +1,5 @@
 import type { BaseDict } from './types';
+import { legal } from './legal/en';
 
 const en: BaseDict = {
   common: {
@@ -251,53 +252,7 @@ const en: BaseDict = {
     warnA: 'RolêJunto is', warnB: 'strictly social', warnC: '. Offering, requesting or accepting any sexual service leads to an immediate ban and, where applicable, a report to the authorities.',
     start: 'Start sign-up',
   },
-  legal: {
-    updated: 'Last updated: {d}', draftA: 'Draft.', draftB: 'This text is an initial template and must be reviewed by a lawyer before publication.',
-    contact: 'Contact the team: {e}',
-    safety: {
-      title: 'Safety center',
-      blocks: [
-        { p: 'Safety is the foundation of RolêJunto. Here is how we protect you and what you can do at every step.' },
-        { h: 'Before the meet-up', ul: ['Every user goes through ID verification with a document and selfie. Under-18s cannot use the platform.', 'Chat only through RolêJunto and never pay outside the app. Payment is held until the meet-up.', 'Add a trusted contact in My account.'] },
-        { h: 'During the meet-up', ul: ['The first meet-up must always be in a busy public place (club, bar, beach, restaurant, event).', 'Home and Country house unlock only after a completed first meet-up, with the address shared with your trusted contact and mandatory check-in.', 'Use the SOS button in Bookings if you need help. In immediate danger, call 190.'] },
-        { h: 'After the meet-up', ul: ['Review honestly. Reviews help the whole community.', 'Report any inappropriate behavior from the profile or chat. Reports are anonymous.'] },
-        { h: 'Zero tolerance', p: 'RolêJunto is strictly social. Requesting, offering or accepting sexual services, harassment, threats or anything involving minors leads to an immediate ban and, where applicable, a report to the authorities.' },
-      ],
-    },
-    guidelines: {
-      title: 'Community guidelines',
-      blocks: [
-        { p: 'These rules apply to clients and partners, in the app and at meet-ups.' },
-        { h: 'What RolêJunto is', p: 'A social companionship platform for activities: clubs, bars, beach, parties and group gatherings, concerts, meals, culture, sightseeing, events and care for older people.' },
-        { h: 'Prohibited', ul: ['Any sexual service, request, innuendo or content.', 'Sensual photos, revealing clothing or photos of other people.', 'Sharing phone numbers or social media, or asking for off-platform payment.', 'First meet-ups at homes, country houses, motels or hotels.', 'Harassment, discrimination, threats, illegal drugs or any illegal activity.', 'Use of the platform by anyone under 18.'] },
-        { h: 'Home and Country house', ul: ['Only after a completed first meet-up in a public place with the same person.', 'Address shared with the trusted contact and check-in on arrival.', 'The partner may decline or end the meet-up at any time without losing reviews.'] },
-        { h: 'Expected from everyone', ul: ['Respect, punctuality and clear communication.', 'Genuine profiles with recent photos.', 'Decline and report any request that breaks these rules.'] },
-        { h: 'Consequences', p: 'Warning, suspension or permanent ban depending on severity, without prejudice to legal action.' },
-      ],
-    },
-    terms: {
-      title: 'Terms of use',
-      blocks: [
-        { h: '1. About the service', p: 'RolêJunto is a platform connecting people aged 18+ for social companionship activities. RolêJunto does not provide the companionship service; it acts as a technology and payment intermediary.' },
-        { h: '2. Sign-up and verification', p: 'You must be 18 or older and complete identity verification to use the platform. You agree to provide truthful information.' },
-        { h: '3. Strictly social nature', p: 'Using the platform to offer, request or hire sexual services is prohibited. Violations lead to a ban and may be reported to the authorities.' },
-        { h: '4. Bookings, payments and cancellations', p: 'Payment is made on the platform and held until the meet-up is completed. The service fee and cancellation policy are shown before confirmation. [Define cancellation and refund policy.]' },
-        { h: '5. Responsibilities', p: '[Define liability limits, user conduct and dispute resolution.]' },
-        { h: '6. Jurisdiction and law', p: '[Define jurisdiction and applicable law.]' },
-      ],
-    },
-    privacy: {
-      title: 'Privacy policy',
-      blocks: [
-        { p: "This policy explains how RolêJunto processes your personal data, in line with Brazil's General Data Protection Law (Law 13.709/2018)." },
-        { h: 'Data we collect', ul: ['Sign-up: name, email, date of birth.', 'Verification: ID image and selfie (biometric, sensitive data), processed with specific consent.', 'Approximate location, used only to show nearby partners. We never display addresses.', 'Messages, bookings and reviews, to provide the service and keep people safe.', 'Access logs, kept for 6 months as required by the Brazilian Internet Civil Framework.'] },
-        { h: 'How we use it', ul: ['Verify identity and age.', 'Handle bookings and payments.', 'Prevent fraud and protect the community (moderation and reports).'] },
-        { h: 'Sharing', p: 'With the identity verification provider, the payment processor and authorities when required by law. We do not sell your data.' },
-        { h: 'Your rights', p: 'You can access, correct, download and delete your data in My account, or contact our data protection officer (DPO).' },
-        { h: 'Retention', p: '[Define retention periods per data type, including deleting verification images after approval.]' },
-      ],
-    },
-  },
+  legal,
   report: {
     title: 'Report {name}', anon: 'Your report is anonymous. In immediate danger, call 190.', what: 'What happened?',
     reasons: ['Asked for or offered sexual services', 'Abusive behavior, threats or harassment', 'Fake profile or photos of someone else', 'Seems to be under 18', 'Asked for off-platform payment', 'Other reason'],

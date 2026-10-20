@@ -33,7 +33,14 @@ const Env = z.object({
   SERVICE_FEE_RATE: z.coerce.number().default(0.1),
   MIN_AGE: z.coerce.number().default(18),
   LATE_CANCEL_REFUND_RATE: z.coerce.number().default(0.5), // reembolso em cancelamentos com menos de 24 h
-  PAYMENT_PROVIDER: z.enum(['mock', 'mercadopago']).default('mock'),
+  PAYMENT_PROVIDER: z.enum(['mock', 'mercadopago', 'sharkpay']).default('mock'),
+  // SharkPay (sharkpay.com.br): Pix. Chaves em Painel > API. O segredo do webhook aparece uma vez ao cadastrar a URL.
+  SHARKPAY_PUBLIC_KEY: z.string().optional(),
+  SHARKPAY_SECRET_KEY: z.string().optional(),
+  SHARKPAY_WEBHOOK_SECRET: z.string().optional(),
+  SHARKPAY_URL: z.string().default('https://sharkpay.com.br'),
+  // CPF/CNPJ usado como pagador quando o cliente não informou documento (a SharkPay exige um)
+  SHARKPAY_PAYER_DOCUMENT: z.string().optional(),
   MERCADOPAGO_ACCESS_TOKEN: z.string().optional(),
   MERCADOPAGO_WEBHOOK_SECRET: z.string().optional(),
   VERIFICATION_PROVIDER: z.enum(['mock']).default('mock'),

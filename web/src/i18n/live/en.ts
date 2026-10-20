@@ -147,7 +147,7 @@ const enL: LiveDict = {
       cmd: 'Full diagnosis on the server:',
       problems: {
         not_configured: 'Email isn’t configured on the server. Fill in GMAIL_USER and GMAIL_APP_PASSWORD in the .env file and apply with "docker compose up -d" ("restart" doesn’t reread .env).',
-        bad_user: 'GMAIL_USER must be just the address, e.g. rolejunto.app@gmail.com.',
+        bad_user: 'GMAIL_USER must be just the address, e.g. contatorolejunto@gmail.com.',
         auth: 'Gmail rejected the login (error 535). Use the 16-letter app password, not your normal password, and check GMAIL_USER is the same account.',
         two_step: 'This account needs an app password (error 534). Turn on 2-Step Verification and create an app password.',
         blocked_port: 'The server can’t reach Gmail: the VPS blocks the email ports (465/587). Ask your VPS support to open them, or use Brevo (BREVO_API_KEY), which sends over HTTPS.',

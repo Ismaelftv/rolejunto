@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon } from '../components/Icon';
+import { publicConfig } from '../components/SocialLogin';
 import { ActivityIcon, PageTitle, useTitle } from '../components/ui';
 import { activityByKey, type ActivityKey } from '../data/activities';
 import { usePartner } from '../lib/partners';
@@ -24,6 +25,8 @@ export default function Checkout() {
   const [place, setPlace] = useState('');
   const [note, setNote] = useState('');
   const [payment, setPayment] = useState<'pix' | 'cartao'>('pix');
+  const [cardOn, setCardOn] = useState(true);
+  useEffect(() => { void publicConfig().then((c) => { if (c.cardEnabled === false) { setCardOn(false); setPayment('pix'); } }); }, []);
   const [agree, setAgree] = useState(false);
   const [share, setShare] = useState(false);
   const [tried, setTried] = useState(false);
@@ -148,10 +151,10 @@ export default function Checkout() {
               <input type="radio" name="pay" checked={payment === 'pix'} onChange={() => setPayment('pix')} />
               <span className="stack"><strong>{d.checkout.pix}</strong><span className="small muted">{d.checkout.pixHint}</span></span>
             </label>
-            <label className={`radio-card ${payment === 'cartao' ? 'on' : ''}`}>
+            {cardOn && <label className={`radio-card ${payment === 'cartao' ? 'on' : ''}`}>
               <input type="radio" name="pay" checked={payment === 'cartao'} onChange={() => setPayment('cartao')} />
               <span className="stack"><strong>{d.checkout.card}</strong><span className="small muted">{d.checkout.cardHint}</span></span>
-            </label>
+            </label>}
             <div className="notice notice-teal"><Icon name="lock" /> {d.checkout.escrow}</div>
           </div>
 

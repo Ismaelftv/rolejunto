@@ -146,7 +146,7 @@ const ptL = {
       cmd: 'Diagnóstico completo no servidor:',
       problems: {
         not_configured: 'O e-mail não está configurado no servidor. Preencha GMAIL_USER e GMAIL_APP_PASSWORD no arquivo .env e aplique com "docker compose up -d" ("restart" não lê o .env de novo).',
-        bad_user: 'GMAIL_USER precisa ser só o endereço, por exemplo rolejunto.app@gmail.com.',
+        bad_user: 'GMAIL_USER precisa ser só o endereço, por exemplo contatorolejunto@gmail.com.',
         auth: 'O Gmail recusou o login (erro 535). Use a senha de app de 16 letras, não a senha normal, e confira se GMAIL_USER é a mesma conta.',
         two_step: 'Esta conta precisa de senha de app (erro 534). Ative a verificação em duas etapas e crie a senha de app.',
         blocked_port: 'O servidor não consegue se conectar ao Gmail: a VPS bloqueia as portas de e-mail (465/587). Peça a liberação ao suporte da VPS ou use o Brevo (BREVO_API_KEY), que envia por HTTPS.',

@@ -31,6 +31,7 @@ export default function paymentRoutes(app: FastifyInstance, ctx: Ctx) {
   app.post<{ Params: { id: string } }>('/bookings/:id/payment', async (req) => {
     const u = requireUser(req);
     const { method } = parse(z.object({ method: z.enum(['pix', 'card']) }), req.body);
+    if (method === 'card' && ctx.payments.noCard) throw E.badRequest('card_unavailable', 'Cartão indisponível no momento. Pague com Pix.');
     const [b] = await ctx.db.select().from(bookings).where(eq(bookings.id, parse(z.string().uuid(), req.params.id)));
     if (!b || b.clientId !== u.id) throw E.notFound('booking_not_found');
     if (b.status !== 'accepted') throw E.conflict('not_accepted', 'O pagamento fica disponível depois que o parceiro aceitar.');
@@ -45,7 +46,7 @@ export default function paymentRoutes(app: FastifyInstance, ctx: Ctx) {
     const description = `RolêJunto · reserva ${b.id.slice(0, 8).toUpperCase()}`;
     const appUrl = config.APP_URL.split(',')[0];
     if (method === 'pix') {
-      const r = await ctx.payments.createPix({ paymentId: p.id, amountCents: b.totalCents, description, payerEmail: u.email });
+      const r = await ctx.payments.createPix({ paymentId: p.id, amountCents: b.totalCents, description, payerEmail: u.email, payerName: u.name });
       const [x] = await ctx.db.update(payments).set({ providerRef: r.providerRef, pixCode: r.pixCode, pixQrBase64: r.pixQrBase64, expiresAt: r.expiresAt }).where(eq(payments.id, p.id)).returning();
       await ctx.db.update(bookings).set({ paymentStatus: 'pending' }).where(eq(bookings.id, b.id));
       return { payment: payDto(x, ctx.payments.name === 'mock') };
@@ -93,7 +94,7 @@ export default function paymentRoutes(app: FastifyInstance, ctx: Ctx) {
   // Aviso do provedor (Mercado Pago chama esta URL)
   app.post('/webhooks/payments', { config: { rateLimit: { max: 600, timeWindow: '1 minute' } } }, async (req, reply) => {
     try {
-      const ev = await ctx.payments.parseWebhook({ headers: req.headers, body: req.body, query: req.query as Record<string, string> });
+      const ev = await ctx.payments.parseWebhook({ headers: req.headers, body: req.body, query: req.query as Record<string, string>, rawBody: (req as unknown as { rawBody?: string }).rawBody });
       if (ev?.status === 'paid') {
         const [p] = await ctx.db.select().from(payments).where(eq(payments.id, ev.paymentId));
         if (p) {

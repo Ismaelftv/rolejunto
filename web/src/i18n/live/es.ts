@@ -147,7 +147,7 @@ const esL: LiveDict = {
       cmd: 'Diagnóstico completo en el servidor:',
       problems: {
         not_configured: 'El correo no está configurado en el servidor. Completa GMAIL_USER y GMAIL_APP_PASSWORD en el archivo .env y aplica con "docker compose up -d" ("restart" no vuelve a leer el .env).',
-        bad_user: 'GMAIL_USER debe ser solo la dirección, por ejemplo rolejunto.app@gmail.com.',
+        bad_user: 'GMAIL_USER debe ser solo la dirección, por ejemplo contatorolejunto@gmail.com.',
         auth: 'Gmail rechazó el inicio de sesión (error 535). Usa la contraseña de aplicación de 16 letras, no la normal, y confirma que GMAIL_USER sea la misma cuenta.',
         two_step: 'Esta cuenta necesita contraseña de aplicación (error 534). Activa la verificación en dos pasos y crea la contraseña de aplicación.',
         blocked_port: 'El servidor no logra conectarse a Gmail: la VPS bloquea los puertos de correo (465/587). Pide la liberación al soporte de la VPS o usa Brevo (BREVO_API_KEY), que envía por HTTPS.',
