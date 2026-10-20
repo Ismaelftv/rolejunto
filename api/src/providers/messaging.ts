@@ -147,10 +147,32 @@ export function createMailer(log: Log): Mailer {
         const detail = String((e as Error).message ?? e).slice(0, 400);
         Object.assign(mailStatus, { ok: false, problem, detail, lastError: { at: now(), to, problem, detail } });
         err({ to, subject: mail.subject, problem, err: detail }, 'e-mail não enviado');
+        // Falha passageira (rede, servidor ocupado): tenta de novo em segundo plano, 3 vezes (1, 5 e 30 min).
+        // Senha errada ou remetente recusado não adianta repetir.
+        if (RETRYABLE.has(problem)) scheduleRetry(drv, to, mail, 1, log, err);
         return false;
       }
     },
   };
+}
+
+const RETRYABLE = new Set(['blocked_port', 'tls', 'unknown']);
+const RETRY_DELAYS_MS = [60_000, 5 * 60_000, 30 * 60_000];
+
+function scheduleRetry(drv: Driver, to: string, mail: MailContent, n: number, log: Log, err: (o: object, m: string) => void) {
+  if (config.NODE_ENV === 'test') return;
+  const t = setTimeout(async () => {
+    try {
+      await drv.send(to, mail);
+      Object.assign(mailStatus, { lastSentAt: new Date().toISOString(), ok: true, problem: null });
+      log.info({ to, subject: mail.subject, tentativa: n + 1 }, 'e-mail enviado na nova tentativa');
+    } catch (e) {
+      const problem = explainMailError(e);
+      if (n < RETRY_DELAYS_MS.length && RETRYABLE.has(problem)) scheduleRetry(drv, to, mail, n + 1, log, err);
+      else err({ to, subject: mail.subject, problem, tentativas: n + 1 }, 'e-mail desistiu depois de várias tentativas');
+    }
+  }, RETRY_DELAYS_MS[n - 1]);
+  t.unref();
 }
 
 // Para SMS/WhatsApp ao contato de confiança, ligue aqui um provedor (Twilio, Zenvia, etc.).
