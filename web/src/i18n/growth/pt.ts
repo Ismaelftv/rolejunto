@@ -5,6 +5,7 @@ const g = {
       tabSupport: 'Suporte ({n})',
       verif: { front: 'Frente do documento', back: 'Verso do documento', selfie: 'Selfie', noImages: 'Sem imagens guardadas (envio antigo).', hint: 'As imagens ficam num cofre criptografado e são apagadas assim que você aprova ou recusa. Cada abertura fica no histórico.', failed: 'Não foi possível abrir a imagem.', close: 'Fechar' },
       users: {
+        searchOk: "Aparece na busca", searchNo: "Não aparece na busca. Falta:", missPhotoPending: "foto em análise", miss: { emailVerified: "E-mail confirmado", identityVerified: "Identidade verificada", hasLocation: "Cidade ou localização", hasActivities: "Escolher atividades", hasAvailability: "Disponibilidade na agenda", hasPhoto: "Foto aprovada (aba Conteúdo)", visible: "Perfil visível ligado" },
         role: 'Tipo', status: 'Situação', all: 'Todos', roles: { client: 'Cliente', partner: 'Parceiro', admin: 'Admin' }, statuses: { active: 'Ativo', suspended: 'Suspenso', deleted: 'Removido' },
         total: '{n} usuários', more: 'Carregar mais', open: 'Abrir', detail: 'Ficha do usuário', close: 'Fechar', loading: 'Carregando…',
         fName: 'Nome', fEmail: 'E-mail', fPhone: 'Telefone', fCity: 'Cidade', fLang: 'Idioma', save: 'Salvar alterações', saved: 'Dados atualizados.', nothing: 'Nada mudou.',

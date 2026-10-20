@@ -5,6 +5,7 @@ const g: typeof pt = {
       tabSupport: '客服（{n}）',
       verif: { front: '证件正面', back: '证件背面', selfie: '自拍', noImages: '没有保存的图片（旧提交）。', hint: '图片保存在加密保险库中，您通过或拒绝后会立即删除。每次打开都会记入历史。', failed: '无法打开图片。', close: '关闭' },
       users: {
+        searchOk: "会出现在搜索中", searchNo: "不会出现在搜索中。缺少：", missPhotoPending: "照片审核中", miss: { emailVerified: "邮箱已确认", identityVerified: "身份已验证", hasLocation: "城市或位置", hasActivities: "选择活动", hasAvailability: "日程中的可用时间", hasPhoto: "已通过的照片（内容标签）", visible: "已开启可见资料" },
         role: '类型', status: '状态', all: '全部', roles: { client: '客户', partner: '合作伙伴', admin: '管理员' }, statuses: { active: '正常', suspended: '已暂停', deleted: '已删除' },
         total: '{n} 位用户', more: '加载更多', open: '打开', detail: '用户档案', close: '关闭', loading: '加载中…',
         fName: '姓名', fEmail: '邮箱', fPhone: '电话', fCity: '城市', fLang: '语言', save: '保存更改', saved: '资料已更新。', nothing: '没有更改。',

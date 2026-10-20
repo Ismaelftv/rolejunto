@@ -56,7 +56,7 @@ interface Row { id: string; name: string; email: string; role: string; verificat
 interface Ficha {
   user: Row & { phone: string | null; city: string | null; lang: string; age: number | null; emailVerified: boolean; lastSeenAt: string | null; locked: boolean };
   stats: { bookingsAsClient: number; bookingsAsPartner: number; reportsAgainst: number; reportsMade: number; tickets: number; sessions: number };
-  partner: { visible: boolean; photos: { approved: number; pending: number } } | null;
+  partner: { checklist: { searchable: boolean; photoPending: boolean } & Record<string, boolean | string | number | null>; visible: boolean; photos: { approved: number; pending: number } } | null;
   verification: { status: string; inReview: boolean };
 }
 
@@ -163,6 +163,14 @@ function UserPanel({ id, locale, onClose, changed, toast, fail }: { id: string; 
         <div className="dash-grid">
           {stat(u.stAsClient, s.bookingsAsClient)}{stat(u.stAsPartner, s.bookingsAsPartner)}{stat(u.stAgainst, s.reportsAgainst)}{stat(u.stMade, s.reportsMade)}{stat(u.stTickets, s.tickets)}{stat(u.stSessions, s.sessions)}
         </div>
+        {p && (
+          <div className={`notice ${p.checklist.searchable ? 'notice-teal' : 'notice-warn'}`}>
+            <div className="stack gap-4">
+              <strong>{p.checklist.searchable ? u.searchOk : u.searchNo}</strong>
+              {!p.checklist.searchable && (['emailVerified', 'identityVerified', 'hasLocation', 'hasActivities', 'hasAvailability', 'hasPhoto', 'visible'] as const).filter((k) => !p.checklist[k]).map((k) => <span key={k} className="small">• {u.miss[k]}{k === 'hasPhoto' && p.checklist.photoPending ? ` (${u.missPhotoPending})` : ''}</span>)}
+            </div>
+          </div>
+        )}
         {p && <div className="small muted">{u.partner}: {p.visible ? u.visible : u.hidden} · {f(u.photos, { a: p.photos.approved, p: p.photos.pending })}</div>}
 
         {!gone && (

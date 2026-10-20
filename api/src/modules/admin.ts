@@ -1,3 +1,4 @@
+import { searchChecklist } from './partners.js';
 import type { FastifyInstance } from 'fastify';
 import { and, desc, eq, gte, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -156,7 +157,7 @@ export default function adminRoutes(app: FastifyInstance, ctx: Ctx) {
         locked: !!u.lockedUntil && u.lockedUntil > new Date(), failedLogins: u.failedLogins,
       },
       stats: { bookingsAsClient: asClient, bookingsAsPartner: asPartner, reportsAgainst: against, reportsMade: made, tickets, sessions: sess },
-      partner: prof ? { visible: prof.visible, city: prof.city, priceCents: prof.priceCents, activities: prof.activities, photos: { total: pics.length, pending: pics.filter((x) => x.status === 'pending').length, approved: pics.filter((x) => x.status === 'approved').length } } : null,
+      partner: prof ? { checklist: await searchChecklist(ctx.db, u), visible: prof.visible, city: prof.city, priceCents: prof.priceCents, activities: prof.activities, photos: { total: pics.length, pending: pics.filter((x) => x.status === 'pending').length, approved: pics.filter((x) => x.status === 'approved').length } } : null,
       verification: { status: u.verification, lastAttempt: lastV ? { status: lastV.status, createdAt: lastV.createdAt, decidedAt: lastV.decidedAt } : null, inReview: lastV?.status === 'in_review' },
     };
   });

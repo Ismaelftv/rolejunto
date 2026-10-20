@@ -5,6 +5,7 @@ const g: typeof pt = {
       tabSupport: 'Support ({n})',
       verif: { front: 'ID front', back: 'ID back', selfie: 'Selfie', noImages: 'No images stored (older submission).', hint: 'Images are kept in an encrypted vault and deleted as soon as you approve or reject. Every time one is opened it is logged.', failed: 'Could not open the image.', close: 'Close' },
       users: {
+        searchOk: "Shows in search", searchNo: "Not showing in search. Missing:", missPhotoPending: "photo in review", miss: { emailVerified: "E-mail confirmed", identityVerified: "Identity verified", hasLocation: "City or location", hasActivities: "Pick activities", hasAvailability: "Availability in the schedule", hasPhoto: "Approved photo (Content tab)", visible: "Visible profile switched on" },
         role: 'Type', status: 'Status', all: 'All', roles: { client: 'Client', partner: 'Partner', admin: 'Admin' }, statuses: { active: 'Active', suspended: 'Suspended', deleted: 'Removed' },
         total: '{n} users', more: 'Load more', open: 'Open', detail: 'User record', close: 'Close', loading: 'Loading…',
         fName: 'Name', fEmail: 'E-mail', fPhone: 'Phone', fCity: 'City', fLang: 'Language', save: 'Save changes', saved: 'Details updated.', nothing: 'Nothing changed.',
